@@ -8,7 +8,16 @@ class StartViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupStartButton()
+        // Dont bother with the grid view, because andy doesn't use it.
+        //setupStartButton()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        // show the videos as soon as the main view appears
+        // (viewDidLoad is apparently too earlier to present a new vc)
+        let viewController = ViewController(videoURLs: getMP4FileURLs(), extras: [])
+        viewController.modalPresentationStyle = .fullScreen
+        self.present(viewController, animated: true, completion: nil)
     }
     
     private func setupStartButton() {
