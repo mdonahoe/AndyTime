@@ -1,2 +1,2 @@
 # AndyTime
-an iOS app make just for Andy
+an iOS app made just for Andy
