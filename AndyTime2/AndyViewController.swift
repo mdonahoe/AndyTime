@@ -1,5 +1,5 @@
 //
-//  ViewController.swift
+//  AndyViewController.swift
 //  AndyTime2
 //
 //  Created by Matt Donahoe on 7/1/23.
@@ -9,7 +9,15 @@ import UIKit
 import AVFoundation
 import AVKit
 
-class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
+/* 
+ This class is the main view controller for the app.
+
+ It is a UIPageViewController that contains a custom tab bar at the bottom.
+ The view controllers are either VideoViewController or generic UIViewController.
+ The VideoViewController is a subclass of UIViewController that contains an AVPlayer.
+ The UIViewController is a generic view controller that contains a UIView.
+*/
+class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
     
     private var videoURLs: [URL]
     private var extraViews: [UIViewController]
@@ -75,7 +83,6 @@ class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageVi
         pageViewController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
         pageViewController.dataSource = self
         pageViewController.delegate = self
-
         
         // Set the first view controller
         if let firstViewController = viewControllers.first {
@@ -98,32 +105,35 @@ class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageVi
     }
     
     private func customizeViewControllers() {
+        // Add green view first
+        let greenViewController = UIViewController()
+        greenViewController.view.backgroundColor = .green
+        greenViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
+        viewControllers.append(greenViewController)
 
-        let videos = videoURLs
-                
-        for video in videos {
-            let videoViewController = VideoViewController(videoURL: video)
+        // Add video views
+        let videos = Dictionary(grouping: videoURLs) { url in
+            url.lastPathComponent.split(separator: "-").first.map(String.init) ?? ""
+        }
+        print("videos: \(videos)")
+
+        for (name, urls) in videos.sorted(by: { $0.key < $1.key }) {
+            let sortedUrls = urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
+            print("name: \(name), sorted \(sortedUrls)")
+            let videoViewController = VideoViewController(name: name, videoPlaylist: sortedUrls)
             viewControllers.append(videoViewController)
         }
         
         viewControllers.append(contentsOf: self.extraViews)
         
-        // reloadPageViewController(with: viewControllers)
-        let colors: [UIColor] = [.blue, .red, .green, .black] // Example colors
-        
-        for (_, color) in colors.enumerated() {
-            let viewController = UIViewController()
-            viewController.view.backgroundColor = color
-            
-            viewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
-            
-            // Customize the content of each view controller here
-            
-            viewControllers.append(viewController)
-        }
+        // Add red view last
+        let redViewController = UIViewController()
+        redViewController.view.backgroundColor = .red
+        redViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
+        viewControllers.append(redViewController)
     }
-    
 
+    // TODO(matt): do we need this?
     private func reloadPageViewController(with viewControllers: [UIViewController]) {
         guard let currentViewController = pageViewController.viewControllers?.first else {
             return
@@ -192,8 +202,6 @@ class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageVi
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        //customizeViewControllers()
 
         startVideoPlayback()
     }
@@ -207,7 +215,10 @@ class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageVi
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
         
         // Stop previous video player
-        currentVideoPlayer?.pause()
+        if let oldplayer = currentVideoPlayer {
+            print("pausing old player")
+            oldplayer.pause()
+        }
         currentVideoPlayer = nil
         
         guard let currentViewController = pageViewController.viewControllers?.first as? VideoViewController else {
@@ -216,11 +227,9 @@ class ViewController: UIViewController, UIPageViewControllerDataSource, UIPageVi
         }
 
         // Start current video player
-        if let url = currentViewController.videoURL {
-            print("playing \(url)")
-            currentVideoPlayer = currentViewController.player
-            currentViewController.restartIfNeeded()
-            currentVideoPlayer?.play()
-        }
+        print("starting \(currentViewController.name)")
+        currentVideoPlayer = currentViewController.player
+        currentViewController.restartIfNeeded()
+        currentVideoPlayer?.play()
     }
 }

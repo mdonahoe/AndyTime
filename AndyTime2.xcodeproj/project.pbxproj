@@ -8,22 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		B812B1982A5112E5000126B1 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1972A5112E5000126B1 /* AppDelegate.swift */; };
-		B812B19C2A5112E5000126B1 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B19B2A5112E5000126B1 /* ViewController.swift */; };
 		B812B1A12A5112E5000126B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B812B1A02A5112E5000126B1 /* Assets.xcassets */; };
 		B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AB2A5119E7000126B1 /* VideoViewController.swift */; };
 		B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AD2A511D99000126B1 /* StartViewController.swift */; };
-		B8D1DA7C2A5476D000525B93 /* GridVideoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D1DA7B2A5476D000525B93 /* GridVideoViewController.swift */; };
+		B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008DE2D0B536100C83F1D /* AndyViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		B812B1942A5112E5000126B1 /* AndyTime2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AndyTime2.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B812B1972A5112E5000126B1 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		B812B19B2A5112E5000126B1 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		B812B1A02A5112E5000126B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B812B1A52A5112E5000126B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B812B1AB2A5119E7000126B1 /* VideoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoViewController.swift; sourceTree = "<group>"; };
 		B812B1AD2A511D99000126B1 /* StartViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartViewController.swift; sourceTree = "<group>"; };
-		B8D1DA7B2A5476D000525B93 /* GridVideoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridVideoViewController.swift; sourceTree = "<group>"; };
+		B87008DE2D0B536100C83F1D /* AndyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndyViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,13 +54,12 @@
 		B812B1962A5112E5000126B1 /* AndyTime2 */ = {
 			isa = PBXGroup;
 			children = (
+				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
-				B812B19B2A5112E5000126B1 /* ViewController.swift */,
 				B812B1AB2A5119E7000126B1 /* VideoViewController.swift */,
 				B812B1A02A5112E5000126B1 /* Assets.xcassets */,
 				B812B1A52A5112E5000126B1 /* Info.plist */,
-				B8D1DA7B2A5476D000525B93 /* GridVideoViewController.swift */,
 			);
 			path = AndyTime2;
 			sourceTree = "<group>";
@@ -136,9 +133,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B812B19C2A5112E5000126B1 /* ViewController.swift in Sources */,
+				B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */,
 				B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */,
-				B8D1DA7C2A5476D000525B93 /* GridVideoViewController.swift in Sources */,
 				B812B1982A5112E5000126B1 /* AppDelegate.swift in Sources */,
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
 			);
@@ -268,7 +264,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = URLV5J49JW;
+				DEVELOPMENT_TEAM = T9HAK7CXKV;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AndyTime2/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -295,7 +291,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = URLV5J49JW;
+				DEVELOPMENT_TEAM = T9HAK7CXKV;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AndyTime2/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;

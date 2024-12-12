@@ -3,19 +3,28 @@ import AVKit
 
 class VideoViewController: UIViewController {
     
-    public var videoURL: URL?
-    public var player: AVPlayer?
+    var name : String = ""
+    private var videoPlaylist: [URL] = []
+    private var currentVideoIndex: Int = 0
+    var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
+    private var playerItemObserver: NSObjectProtocol?
     
-    convenience init(videoURL: URL) {
+    convenience init(name: String, videoPlaylist: [URL]) {
         self.init()
-        self.videoURL = videoURL
+        self.name = name
+        self.videoPlaylist = videoPlaylist
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         setupPlayer()
+        print("player?.currentItem: \(player?.currentItem)")
+        NotificationCenter.default.addObserver(self,
+                                             selector: #selector(playerDidFinishPlaying),
+                                             name: .AVPlayerItemDidPlayToEndTime,
+                                             object: player?.currentItem)
     }
     
     override func viewDidLayoutSubviews() {
@@ -25,17 +34,47 @@ class VideoViewController: UIViewController {
     }
     
     private func setupPlayer() {
-        guard let videoURL = videoURL else {
-            return
-        }
+        guard !videoPlaylist.isEmpty else { return }
         
-        player = AVPlayer(url: videoURL)
+        player = AVPlayer(url: videoPlaylist[currentVideoIndex])
         playerLayer = AVPlayerLayer(player: player)
         playerLayer?.videoGravity = .resizeAspectFill
         
         if let playerLayer = playerLayer {
             view.layer.addSublayer(playerLayer)
         }
+    }
+    
+    @objc private func playerDidFinishPlaying() {
+        print("playerDidFinishPlaying \(name) index=\(currentVideoIndex) url=\(videoPlaylist[currentVideoIndex])")
+        playNextVideo()
+    }
+    
+    private func playNextVideo() {
+        // Remove previous observer
+        if let observer = playerItemObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        
+        currentVideoIndex += 1
+        
+        if currentVideoIndex >= videoPlaylist.count {
+            currentVideoIndex = 0
+        }
+        
+        let nextURL = videoPlaylist[currentVideoIndex]
+        let playerItem = AVPlayerItem(url: nextURL)
+        player?.replaceCurrentItem(with: playerItem)
+        
+        // Add new observer for the new item
+        playerItemObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: playerItem,
+            queue: .main) { [weak self] _ in
+                self?.playerDidFinishPlaying()
+        }
+        
+        player?.play()
     }
     
     func playVideo() {
@@ -49,8 +88,8 @@ class VideoViewController: UIViewController {
     
     func restartIfNeeded() {
         if let p = player, isPlayerAtEnd(thePlayer: p) {
-            print("restarting \(videoURL)")
-            p.seek(to: CMTime.zero)
+            print("would restarting \(name) index=\(currentVideoIndex) url=\(videoPlaylist[currentVideoIndex])")
+            // p.seek(to: CMTime.zero)
         }
     }
     

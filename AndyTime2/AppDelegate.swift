@@ -15,10 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.makeKeyAndVisible()
-        
-        let rootViewController = StartViewController() // Replace with your root view controller class
+        let rootViewController = StartViewController()
         window?.rootViewController = rootViewController
-        
         return true
     }
 }
