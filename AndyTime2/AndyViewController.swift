@@ -131,6 +131,10 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         redViewController.view.backgroundColor = .red
         redViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
         viewControllers.append(redViewController)
+
+        let adminViewController = AdminViewController()
+        adminViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
+        viewControllers.insert(adminViewController, at: 0)
     }
 
     // TODO(matt): do we need this?

@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -12,7 +12,19 @@
 		B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AB2A5119E7000126B1 /* VideoViewController.swift */; };
 		B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AD2A511D99000126B1 /* StartViewController.swift */; };
 		B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008DE2D0B536100C83F1D /* AndyViewController.swift */; };
+		B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E02D11BE7600C83F1D /* AdminViewController.swift */; };
+		B87008E32D11C5A500C83F1D /* PlaybackTimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E22D11C5A500C83F1D /* PlaybackTimeManager.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B87008EE2D1313FE00C83F1D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B812B18C2A5112E5000126B1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B812B1932A5112E5000126B1;
+			remoteInfo = AndyTime2;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		B812B1942A5112E5000126B1 /* AndyTime2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AndyTime2.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -22,10 +34,24 @@
 		B812B1AB2A5119E7000126B1 /* VideoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoViewController.swift; sourceTree = "<group>"; };
 		B812B1AD2A511D99000126B1 /* StartViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartViewController.swift; sourceTree = "<group>"; };
 		B87008DE2D0B536100C83F1D /* AndyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndyViewController.swift; sourceTree = "<group>"; };
+		B87008E02D11BE7600C83F1D /* AdminViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViewController.swift; sourceTree = "<group>"; };
+		B87008E22D11C5A500C83F1D /* PlaybackTimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackTimeManager.swift; sourceTree = "<group>"; };
+		B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AndyTimeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B87008EB2D1313FE00C83F1D /* AndyTimeTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = AndyTimeTests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B812B1912A5112E5000126B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B87008E72D1313FE00C83F1D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -39,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				B812B1962A5112E5000126B1 /* AndyTime2 */,
+				B87008EB2D1313FE00C83F1D /* AndyTimeTests */,
 				B812B1952A5112E5000126B1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -47,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				B812B1942A5112E5000126B1 /* AndyTime2.app */,
+				B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -54,12 +82,14 @@
 		B812B1962A5112E5000126B1 /* AndyTime2 */ = {
 			isa = PBXGroup;
 			children = (
+				B87008E22D11C5A500C83F1D /* PlaybackTimeManager.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
 				B812B1AB2A5119E7000126B1 /* VideoViewController.swift */,
 				B812B1A02A5112E5000126B1 /* Assets.xcassets */,
 				B812B1A52A5112E5000126B1 /* Info.plist */,
+				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 			);
 			path = AndyTime2;
 			sourceTree = "<group>";
@@ -84,6 +114,29 @@
 			productReference = B812B1942A5112E5000126B1 /* AndyTime2.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B87008E92D1313FE00C83F1D /* AndyTimeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B87008F02D1313FE00C83F1D /* Build configuration list for PBXNativeTarget "AndyTimeTests" */;
+			buildPhases = (
+				B87008E62D1313FE00C83F1D /* Sources */,
+				B87008E72D1313FE00C83F1D /* Frameworks */,
+				B87008E82D1313FE00C83F1D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B87008EF2D1313FE00C83F1D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B87008EB2D1313FE00C83F1D /* AndyTimeTests */,
+			);
+			name = AndyTimeTests;
+			packageProductDependencies = (
+			);
+			productName = AndyTimeTests;
+			productReference = B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -91,11 +144,15 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1430;
+				LastSwiftUpdateCheck = 1610;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					B812B1932A5112E5000126B1 = {
 						CreatedOnToolsVersion = 14.3.1;
+					};
+					B87008E92D1313FE00C83F1D = {
+						CreatedOnToolsVersion = 16.1;
+						TestTargetID = B812B1932A5112E5000126B1;
 					};
 				};
 			};
@@ -113,6 +170,7 @@
 			projectRoot = "";
 			targets = (
 				B812B1932A5112E5000126B1 /* AndyTime2 */,
+				B87008E92D1313FE00C83F1D /* AndyTimeTests */,
 			);
 		};
 /* End PBXProject section */
@@ -126,6 +184,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B87008E82D1313FE00C83F1D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -134,13 +199,30 @@
 			buildActionMask = 2147483647;
 			files = (
 				B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */,
+				B87008E32D11C5A500C83F1D /* PlaybackTimeManager.swift in Sources */,
 				B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */,
 				B812B1982A5112E5000126B1 /* AppDelegate.swift in Sources */,
+				B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */,
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B87008E62D1313FE00C83F1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B87008EF2D1313FE00C83F1D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B812B1932A5112E5000126B1 /* AndyTime2 */;
+			targetProxy = B87008EE2D1313FE00C83F1D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B812B1A62A5112E5000126B1 /* Debug */ = {
@@ -276,7 +358,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.skydio.AndyTime2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdonahoe.AndyTime2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -303,11 +385,58 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.skydio.AndyTime2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdonahoe.AndyTime2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B87008F12D1313FE00C83F1D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T9HAK7CXKV;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdonahoe.AndyTimeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AndyTime2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AndyTime2";
+			};
+			name = Debug;
+		};
+		B87008F22D1313FE00C83F1D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T9HAK7CXKV;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdonahoe.AndyTimeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AndyTime2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AndyTime2";
 			};
 			name = Release;
 		};
@@ -328,6 +457,15 @@
 			buildConfigurations = (
 				B812B1A92A5112E5000126B1 /* Debug */,
 				B812B1AA2A5112E5000126B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B87008F02D1313FE00C83F1D /* Build configuration list for PBXNativeTarget "AndyTimeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B87008F12D1313FE00C83F1D /* Debug */,
+				B87008F22D1313FE00C83F1D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
