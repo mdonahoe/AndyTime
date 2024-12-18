@@ -82,14 +82,14 @@
 		B812B1962A5112E5000126B1 /* AndyTime2 */ = {
 			isa = PBXGroup;
 			children = (
-				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
+				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
+				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
 				B812B1AB2A5119E7000126B1 /* VideoViewController.swift */,
 				B812B1A02A5112E5000126B1 /* Assets.xcassets */,
 				B812B1A52A5112E5000126B1 /* Info.plist */,
-				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 			);
 			path = AndyTime2;
 			sourceTree = "<group>";
