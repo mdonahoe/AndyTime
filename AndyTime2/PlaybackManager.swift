@@ -32,15 +32,16 @@ class PlaybackManager {
         let fileName = String(url.split(separator: "/").last!)
         let channelName = String(fileName.split(separator: "-").first!)
         videoDurations[fileName] = duration
-        channelVideos[channelName] = channelVideos[channelName] ?? [] + [fileName]
+        channelVideos[channelName] = (channelVideos[channelName] ?? []) + [fileName]
         if !channels.contains(channelName) {
             channels.append(channelName)
         }
+        print(channels, channelVideos, videoDurations)
     }
     
-    // Adjust time by modifying the start time
+    // Adjust time by modifying the start time in the opposite direction
     func adjustTime(by seconds: TimeInterval) {
-        startTime = startTime.addingTimeInterval(seconds)
+        startTime = startTime.addingTimeInterval(-seconds)
         notifyTimeChange()
     }
     
@@ -56,13 +57,14 @@ class PlaybackManager {
     }
     
     struct PlaylistPosition {
+        let channelName: String
         let videoIndex: Int
         let seekTime: TimeInterval
     }
     
-    func calculatePlaylistPosition(playbackTime: TimeInterval, videoDurations: [TimeInterval]) -> PlaylistPosition {
+    func calculatePlaylistPosition(playbackTime: TimeInterval, videoDurations: [TimeInterval], channelName: String) -> PlaylistPosition {
         guard !videoDurations.isEmpty else {
-            return PlaylistPosition(videoIndex: 0, seekTime: 0)
+            return PlaylistPosition(channelName: channelName, videoIndex: 0, seekTime: 0)
         }
         
         let totalDuration = videoDurations.reduce(0, +)
@@ -70,12 +72,26 @@ class PlaybackManager {
         
         for (index, duration) in videoDurations.enumerated() {
             if remainingTime < duration {
-                return PlaylistPosition(videoIndex: index, seekTime: remainingTime)
+                return PlaylistPosition(channelName: channelName, videoIndex: index, seekTime: remainingTime)
             }
             remainingTime -= duration
         }
         
         // This should never happen if we're using truncatingRemainder correctly
-        return PlaylistPosition(videoIndex: 0, seekTime: 0)
+        return PlaylistPosition(channelName: channelName, videoIndex: 0, seekTime: 0)
     }
+
+    func setChannelIndex(index: Int) {
+        currentChannelIndex = index
+    }
+
+    func getState() -> PlaylistPosition {
+        let channelName = channels[currentChannelIndex]
+        let videos = channelVideos[channelName] ?? []
+        let durations = videos.map { videoDurations[$0] ?? 0 }
+        print("videos = \(videos) durations \(durations)")
+        let playbackTime = currentPlaybackTime
+        return calculatePlaylistPosition(playbackTime: playbackTime, videoDurations: durations, channelName: channelName)
+    }
+
 }
