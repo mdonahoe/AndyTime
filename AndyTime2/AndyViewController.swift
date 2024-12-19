@@ -19,16 +19,14 @@ import AVKit
 */
 class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
     
-    private var videoURLs: [URL]
     private var extraViews: [UIViewController]
     private var pageViewController: UIPageViewController!
     private var viewControllers: [UIViewController] = []
     private var customTabBar: UIView!
-    private var currentVideoPlayer: AVPlayer?
+    private var currentVideoView: VideoViewController?
 
     
-    init(videoURLs: [URL], extras: [UIViewController]) {
-        self.videoURLs = videoURLs
+    init(extras: [UIViewController]) {
         self.extraViews = extras
         super.init(nibName: nil, bundle: nil)
     }
@@ -111,16 +109,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         greenViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
         viewControllers.append(greenViewController)
 
-        // Add video views
-        let videos = Dictionary(grouping: videoURLs) { url in
-            url.lastPathComponent.split(separator: "-").first.map(String.init) ?? ""
-        }
-        print("videos: \(videos)")
-
-        for (name, urls) in videos.sorted(by: { $0.key < $1.key }) {
-            let sortedUrls = urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
-            print("name: \(name), sorted \(sortedUrls)")
-            let videoViewController = VideoViewController(name: name, videoPlaylist: sortedUrls)
+        let channels = PlaybackManager.shared.getChannels()
+        for (channelIndex, name) in channels.enumerated() {
+            let videoViewController = VideoViewController(name: name, channelIndex: channelIndex)
             viewControllers.append(videoViewController)
         }
         
@@ -193,7 +184,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             return
         }
         
-        currentViewController.playVideo()
+        currentViewController.resumePlayback()
     }
     
     private func stopVideoPlayback() {
@@ -219,21 +210,21 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
         
         // Stop previous video player
-        if let oldplayer = currentVideoPlayer {
-            print("pausing old player")
-            oldplayer.pause()
+        if let oldplayer = currentVideoView {
+            print("pausing old player view")
+            oldplayer.stopVideo()
         }
-        currentVideoPlayer = nil
+        currentVideoView = nil
         
         guard let currentViewController = pageViewController.viewControllers?.first as? VideoViewController else {
-            print("guard")
+            print("guard view")
             return
         }
 
         // Start current video player
         print("starting \(currentViewController.name)")
-        currentVideoPlayer = currentViewController.player
-        currentViewController.restartIfNeeded()
-        currentVideoPlayer?.play()
+        PlaybackManager.shared.setChannelIndex(index: currentViewController.channelIndex)
+        currentVideoView = currentViewController
+        currentVideoView?.resumePlayback()
     }
 }

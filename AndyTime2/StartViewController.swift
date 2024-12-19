@@ -15,16 +15,10 @@ class StartViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         // show the videos as soon as the main view appears
         // (viewDidLoad is apparently too early to present a new vc)
-        let viewController = AndyViewController(videoURLs: getMP4FileURLs(), extras: [])
+        let viewController = AndyViewController(extras: [])
         viewController.modalPresentationStyle = .fullScreen
         self.present(viewController, animated: true, completion: nil)
     }
     
-    func getMP4FileURLs() -> [URL] {
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let mp4Files = try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "mp4" }
-        
-        return mp4Files ?? []
-    }
+
 }

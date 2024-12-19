@@ -1,4 +1,5 @@
 import Foundation
+import AVKit
 
 class PlaybackManager {
     static let shared = PlaybackManager()
@@ -26,17 +27,48 @@ class PlaybackManager {
     var currentPlaybackTime: TimeInterval {
         return -startTime.timeIntervalSinceNow
     }
+    
+    func getChannels() -> [String] {
+        return channels
+    }
+    
+    func loadVideos() {
+        func calculateDurationForVideo(videoUrl: URL) {
+            let asset = AVURLAsset(url: videoUrl)
+            asset.loadValuesAsynchronously(forKeys: ["duration"]) { [weak self] in
+                guard self != nil else { return }
+                let duration = asset.duration
+                self?.addVideo(url: videoUrl.absoluteString, duration: duration.seconds)
+            }
+        }
+        // Add video views
+        let videoUrls = getMP4FileURLs()
+        for videoUrl in videoUrls {
+            calculateDurationForVideo(videoUrl: videoUrl)
+        }
+        // TODO(matt): how do we wait for the channels to be loaded?
+        print("presorted channels = \(channels)")
+        channels.sort()
+        print("sorted channels = \(channels)")
+    }
+    
+    func getMP4FileURLs() -> [URL] {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let mp4Files = try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "mp4" }
+        return mp4Files ?? []
+    }
 
     func addVideo(url: String, duration: TimeInterval) {
         // parse the channel name from the url
         let fileName = String(url.split(separator: "/").last!)
         let channelName = String(fileName.split(separator: "-").first!)
-        videoDurations[fileName] = duration
-        channelVideos[channelName] = (channelVideos[channelName] ?? []) + [fileName]
+        videoDurations[url] = duration
+        channelVideos[channelName] = (channelVideos[channelName] ?? []) + [url]
         if !channels.contains(channelName) {
             channels.append(channelName)
         }
-        print(channels, channelVideos, videoDurations)
+        print("added \(fileName)")
     }
     
     // Adjust time by modifying the start time in the opposite direction
@@ -55,16 +87,19 @@ class PlaybackManager {
                                      object: nil, 
                                      userInfo: ["playbackTime": currentPlaybackTime])
     }
-    
-    struct PlaylistPosition {
+    struct PlaybackState {
         let channelName: String
+        let videoUrl: String
+        let playlistPosition: PlaylistPosition
+    }
+    struct PlaylistPosition {
         let videoIndex: Int
         let seekTime: TimeInterval
     }
     
-    func calculatePlaylistPosition(playbackTime: TimeInterval, videoDurations: [TimeInterval], channelName: String) -> PlaylistPosition {
+    func calculatePlaylistPosition(playbackTime: TimeInterval, videoDurations: [TimeInterval]) -> PlaylistPosition {
         guard !videoDurations.isEmpty else {
-            return PlaylistPosition(channelName: channelName, videoIndex: 0, seekTime: 0)
+            return PlaylistPosition(videoIndex: 0, seekTime: 0)
         }
         
         let totalDuration = videoDurations.reduce(0, +)
@@ -72,26 +107,31 @@ class PlaybackManager {
         
         for (index, duration) in videoDurations.enumerated() {
             if remainingTime < duration {
-                return PlaylistPosition(channelName: channelName, videoIndex: index, seekTime: remainingTime)
+                return PlaylistPosition(videoIndex: index, seekTime: remainingTime)
             }
             remainingTime -= duration
         }
         
         // This should never happen if we're using truncatingRemainder correctly
-        return PlaylistPosition(channelName: channelName, videoIndex: 0, seekTime: 0)
+        return PlaylistPosition(videoIndex: 0, seekTime: 0)
     }
 
     func setChannelIndex(index: Int) {
         currentChannelIndex = index
     }
 
-    func getState() -> PlaylistPosition {
+    func getState() -> PlaybackState {
         let channelName = channels[currentChannelIndex]
         let videos = channelVideos[channelName] ?? []
         let durations = videos.map { videoDurations[$0] ?? 0 }
-        print("videos = \(videos) durations \(durations)")
+        print("channel=\(channelName) videos=\(videos) durations=\(durations)")
         let playbackTime = currentPlaybackTime
-        return calculatePlaylistPosition(playbackTime: playbackTime, videoDurations: durations, channelName: channelName)
+        let playlistPosition = calculatePlaylistPosition(playbackTime: playbackTime, videoDurations: durations)
+        let videoUrl : String = videos[playlistPosition.videoIndex]
+        return PlaybackState(
+            channelName: channelName,
+            videoUrl: videoUrl,
+            playlistPosition: playlistPosition)
     }
 
 }

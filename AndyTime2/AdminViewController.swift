@@ -93,10 +93,9 @@ class AdminViewController: UIViewController {
         updateTimeLabel()
         
         // Observe time changes
-        NotificationCenter.default.addObserver(self, 
-            selector: #selector(handleTimeUpdate), 
-            name: PlaybackManager.playbackTimeDidChange, 
-            object: nil)
+        NotificationCenter.default.addObserver(forName: PlaybackManager.playbackTimeDidChange, object: nil, queue: .main) { [weak self] notification in
+            self?.handleTimeUpdate(notification)
+        }
     }
     
     private func updateTimeLabel() {
@@ -104,6 +103,7 @@ class AdminViewController: UIViewController {
         let hours = Int(time) / 3600
         let minutes = Int(time) / 60 % 60
         let seconds = Int(time) % 60
+        
         timeLabel.text = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
