@@ -18,9 +18,12 @@ import UIKit
 class AdminViewController: UIViewController {
     
     private let timeLabel = UILabel()
+    private let stateLabel = UILabel()
     private let advanceButton = UIButton()
     private let rewindButton = UIButton()
     private let resetButton = UIButton()
+    private let nextChannelButton = UIButton()
+    private let prevChannelButton = UIButton()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -53,6 +56,20 @@ class AdminViewController: UIViewController {
         ])
         timeLabel.text = "00:00:00" // TODO
         
+        // Configure state label
+        stateLabel.textColor = .white
+        stateLabel.textAlignment = .center
+        stateLabel.font = .systemFont(ofSize: 18)
+        stateLabel.numberOfLines = 0 // Allow multiple lines
+        view.addSubview(stateLabel)
+        stateLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stateLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stateLabel.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 20),
+            stateLabel.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9)
+        ])
+        updateStateLabel() // Initial update
+        
         // Configure buttons
         let buttonConfig = UIButton.Configuration.filled()
         var highlightedConfig = UIButton.Configuration.filled()
@@ -80,7 +97,7 @@ class AdminViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             buttonStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            buttonStack.topAnchor.constraint(equalTo: timeLabel.bottomAnchor, constant: 20),
+            buttonStack.topAnchor.constraint(equalTo: stateLabel.bottomAnchor, constant: 20),
             buttonStack.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8)
         ])
         
@@ -96,21 +113,62 @@ class AdminViewController: UIViewController {
         NotificationCenter.default.addObserver(forName: PlaybackManager.playbackTimeDidChange, object: nil, queue: .main) { [weak self] notification in
             self?.handleTimeUpdate(notification)
         }
+        
+        // Create channel button stack
+        let channelButtonStack = UIStackView()
+        channelButtonStack.axis = .horizontal
+        channelButtonStack.spacing = 20
+        channelButtonStack.distribution = .fillEqually
+        view.addSubview(channelButtonStack)
+        channelButtonStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Configure channel buttons
+        [prevChannelButton, nextChannelButton].forEach { button in
+            button.backgroundColor = .darkGray
+            button.layer.cornerRadius = 8
+            channelButtonStack.addArrangedSubview(button)
+            button.configuration = buttonConfig
+            button.configurationUpdateHandler = { button in
+                button.configuration?.baseBackgroundColor = button.isHighlighted ? .lightGray : .darkGray
+            }
+        }
+        
+        prevChannelButton.setTitle("Prev Channel", for: .normal)
+        nextChannelButton.setTitle("Next Channel", for: .normal)
+        
+        NSLayoutConstraint.activate([
+            channelButtonStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            channelButtonStack.topAnchor.constraint(equalTo: buttonStack.bottomAnchor, constant: 20),
+            channelButtonStack.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8)
+        ])
+        
+        // Add button targets
+        nextChannelButton.addTarget(self, action: #selector(nextChannel), for: .touchUpInside)
+        prevChannelButton.addTarget(self, action: #selector(prevChannel), for: .touchUpInside)
     }
     
     private func updateTimeLabel() {
         let time = PlaybackManager.shared.currentPlaybackTime
-        let hours = Int(time) / 3600
-        let minutes = Int(time) / 60 % 60
-        let seconds = Int(time) % 60
         
-        timeLabel.text = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.year, .month, .day, .hour, .minute, .second]
+        formatter.unitsStyle = .abbreviated
+        formatter.maximumUnitCount = 6
+        
+        timeLabel.text = formatter.string(from: time)
+    }
+    
+    private func updateStateLabel() {
+        let state = PlaybackManager.shared.getState()
+        let progressString = String(format: "%.2f%%", state.playlistPosition.seekTime / state.playlistPosition.videoDuration * 100)
+        let minutesRemaining = String(format: "%d:%02d", Int(state.playlistPosition.videoDuration - state.playlistPosition.seekTime) / 60, Int(state.playlistPosition.videoDuration - state.playlistPosition.seekTime) % 60)
+        stateLabel.text = "Channel: \(state.channelName)\nVideo: \(state.videoTitle) \(progressString) \(minutesRemaining) remaining"
     }
     
     @objc private func handleTimeUpdate(_ notification: Notification) {
         print("handleTimeUpdate admin")
-        // TODO(matt): we probably want to update the time label once a second.
         updateTimeLabel()
+        updateStateLabel() // Update state label when time changes
     }
     
     @objc private func advanceTime() {
@@ -123,5 +181,15 @@ class AdminViewController: UIViewController {
     
     @objc private func resetTime() {
         PlaybackManager.shared.resetTime()
+    }
+    
+    @objc private func nextChannel() {
+        let state = PlaybackManager.shared.getState()
+        PlaybackManager.shared.setChannelIndex(index:state.channelIndex + 1)
+    }
+    
+    @objc private func prevChannel() {
+        let state = PlaybackManager.shared.getState()
+        PlaybackManager.shared.setChannelIndex(index:state.channelIndex - 1)
     }
 }

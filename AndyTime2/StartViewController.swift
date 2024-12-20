@@ -12,10 +12,20 @@ class StartViewController: UIViewController {
         super.viewDidLoad()
     }
     
+    private func getJPGFileURLs() -> [URL] {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let jpgFiles = try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension.lowercased() == "jpg" }
+        return jpgFiles ?? []
+    }
+    
     override func viewDidAppear(_ animated: Bool) {
-        // show the videos as soon as the main view appears
-        // (viewDidLoad is apparently too early to present a new vc)
-        let viewController = AndyViewController(extras: [])
+        // Create PhotoViewControllers for each jpg file
+        let photoUrls = getJPGFileURLs()
+        let photoViewControllers = photoUrls.map { PhotoViewController(url: $0) }
+        
+        // Create and present the AndyViewController with the photo views
+        let viewController = AndyViewController(extras: photoViewControllers)
         viewController.modalPresentationStyle = .fullScreen
         self.present(viewController, animated: true, completion: nil)
     }

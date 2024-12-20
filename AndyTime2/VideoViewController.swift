@@ -25,6 +25,14 @@ class VideoViewController: UIViewController {
             object: nil)
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        print("viewWillAppear \(name)")
+        let state = PlaybackManager.shared.getState(for: self.channelIndex)
+        self.playVideo(videoUrl: URL(string: state.videoUrl)!, seekTime: state.playlistPosition.seekTime)
+        self.stopVideo()
+    }
+    
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         playerLayer?.frame = view.bounds

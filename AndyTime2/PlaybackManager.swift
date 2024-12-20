@@ -7,6 +7,9 @@ class PlaybackManager {
     // Notification name for time updates
     static let playbackTimeDidChange = Notification.Name("playbackTimeDidChange")
     
+    // Add new notification name
+    static let channelsDidLoad = Notification.Name("channelsDidLoad")
+    
     private var startTime: Date
     private var currentVideoIndex: Int
     private var currentChannelIndex: Int
@@ -15,12 +18,14 @@ class PlaybackManager {
     private var channels: [String]
     
     private init() {
-        startTime = Date()
+        startTime = ISO8601DateFormatter().date(from: "2019-01-09T02:20:00Z")!
         currentVideoIndex = 0
         currentChannelIndex = 0
         channels = []
         channelVideos = [:]
         videoDurations = [:]
+        loadVideos()
+        print("done loading videos")
     }
     
     // Current playback time in seconds
@@ -33,27 +38,35 @@ class PlaybackManager {
     }
     
     func loadVideos() {
-        func calculateDurationForVideo(videoUrl: URL) {
+        let dispatchGroup = DispatchGroup()
+        let videoUrls = getMP4FileURLs()
+        
+        for videoUrl in videoUrls {
+            dispatchGroup.enter()
             let asset = AVURLAsset(url: videoUrl)
             asset.loadValuesAsynchronously(forKeys: ["duration"]) { [weak self] in
-                guard self != nil else { return }
+                guard let self = self else {
+                    dispatchGroup.leave()
+                    return
+                }
                 let duration = asset.duration
-                self?.addVideo(url: videoUrl.absoluteString, duration: duration.seconds)
+                DispatchQueue.main.async {
+                    self.addVideo(url: videoUrl.absoluteString, duration: duration.seconds)
+                    dispatchGroup.leave()
+                }
             }
         }
-        // Add video views
-        let videoUrls = getMP4FileURLs()
-        for videoUrl in videoUrls {
-            calculateDurationForVideo(videoUrl: videoUrl)
+        
+        dispatchGroup.notify(queue: .main) { [weak self] in
+            self?.channels.sort()
+            // Post both notifications
+            NotificationCenter.default.post(name: PlaybackManager.channelsDidLoad, object: nil)
         }
-        // TODO(matt): how do we wait for the channels to be loaded?
-        print("presorted channels = \(channels)")
-        channels.sort()
-        print("sorted channels = \(channels)")
     }
     
     func getMP4FileURLs() -> [URL] {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        print("documents url = \(documentsURL)")
         let mp4Files = try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "mp4" }
         return mp4Files ?? []
@@ -63,6 +76,7 @@ class PlaybackManager {
         // parse the channel name from the url
         let fileName = String(url.split(separator: "/").last!)
         let channelName = String(fileName.split(separator: "-").first!)
+        print("videoDurations \(videoDurations)")
         videoDurations[url] = duration
         channelVideos[channelName] = (channelVideos[channelName] ?? []) + [url]
         if !channels.contains(channelName) {
@@ -89,17 +103,20 @@ class PlaybackManager {
     }
     struct PlaybackState {
         let channelName: String
+        let channelIndex: Int
         let videoUrl: String
+        let videoTitle: String
         let playlistPosition: PlaylistPosition
     }
     struct PlaylistPosition {
         let videoIndex: Int
         let seekTime: TimeInterval
+        let videoDuration: TimeInterval
     }
     
     func calculatePlaylistPosition(playbackTime: TimeInterval, videoDurations: [TimeInterval]) -> PlaylistPosition {
         guard !videoDurations.isEmpty else {
-            return PlaylistPosition(videoIndex: 0, seekTime: 0)
+            return PlaylistPosition(videoIndex: 0, seekTime: 0, videoDuration: 0)
         }
         
         let totalDuration = videoDurations.reduce(0, +)
@@ -107,30 +124,60 @@ class PlaybackManager {
         
         for (index, duration) in videoDurations.enumerated() {
             if remainingTime < duration {
-                return PlaylistPosition(videoIndex: index, seekTime: remainingTime)
+                return PlaylistPosition(videoIndex: index, seekTime: remainingTime, videoDuration: duration)
             }
             remainingTime -= duration
         }
         
         // This should never happen if we're using truncatingRemainder correctly
-        return PlaylistPosition(videoIndex: 0, seekTime: 0)
+        return PlaylistPosition(videoIndex: 0, seekTime: 0, videoDuration: 0)
     }
 
     func setChannelIndex(index: Int) {
-        currentChannelIndex = index
+        guard !channels.isEmpty else {
+            print("No channels available")
+            return
+        }
+        let wrappedIndex = ((index % channels.count) + channels.count) % channels.count
+        currentChannelIndex = wrappedIndex
+        notifyTimeChange()
     }
 
     func getState() -> PlaybackState {
-        let channelName = channels[currentChannelIndex]
+        guard !channels.isEmpty else {
+            print("No channels available")
+            return PlaybackState(
+                channelName: "",
+                channelIndex: currentChannelIndex,
+                videoUrl: "",
+                videoTitle: "",
+                playlistPosition: PlaylistPosition(videoIndex: 0, seekTime: 0, videoDuration: 0))
+        }
+        return getState(for: currentChannelIndex)
+    }
+    
+    func getState(for channelIndex: Int) -> PlaybackState {
+        if channelIndex >= channels.count {
+            print("no channels yet")
+            return PlaybackState(
+                channelName: "",
+                channelIndex: channelIndex,
+                videoUrl: "",
+                videoTitle: "",
+                playlistPosition: PlaylistPosition(videoIndex: 0, seekTime: 0, videoDuration: 0))
+        }
+        let channelName = channels[channelIndex]
         let videos = channelVideos[channelName] ?? []
         let durations = videos.map { videoDurations[$0] ?? 0 }
-        print("channel=\(channelName) videos=\(videos) durations=\(durations)")
         let playbackTime = currentPlaybackTime
         let playlistPosition = calculatePlaylistPosition(playbackTime: playbackTime, videoDurations: durations)
         let videoUrl : String = videos[playlistPosition.videoIndex]
+        let videoTitle = String(String(videoUrl.split(separator: "/").last!).split(separator: "-", maxSplits: 1).last!)
         return PlaybackState(
             channelName: channelName,
+            channelIndex: channelIndex,
             videoUrl: videoUrl,
+            videoTitle: videoTitle,
             playlistPosition: playlistPosition)
     }
 

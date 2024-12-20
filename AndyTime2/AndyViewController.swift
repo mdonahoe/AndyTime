@@ -42,6 +42,13 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         customizeViewControllers()
         setupPageViewController()
         setupCustomTabBar()
+                // Add observer for channel loading
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleChannelsLoaded),
+            name: PlaybackManager.channelsDidLoad,
+            object: nil
+        )
     }
     
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -110,6 +117,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         viewControllers.append(greenViewController)
 
         let channels = PlaybackManager.shared.getChannels()
+        print("vc channels = \(channels)")
         for (channelIndex, name) in channels.enumerated() {
             let videoViewController = VideoViewController(name: name, channelIndex: channelIndex)
             viewControllers.append(videoViewController)
@@ -130,6 +138,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
 
     // TODO(matt): do we need this?
     private func reloadPageViewController(with viewControllers: [UIViewController]) {
+        print("reloadPageViewController")
         guard let currentViewController = pageViewController.viewControllers?.first else {
             return
         }
@@ -163,7 +172,6 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     }
     
     func presentationCount(for pageViewController: UIPageViewController) -> Int {
-        print("YO presentation count \(viewControllers.count)")
         return viewControllers.count
     }
     
@@ -171,11 +179,11 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         guard let currentViewController = pageViewController.viewControllers?.first else {
             return 0
         }
-        print("presentation index")
         return viewControllers.firstIndex(of: currentViewController) ?? 0
     }
     
     func pageViewController(_ pageViewController: UIPageViewController, willTransitionTo pendingViewControllers: [UIViewController]) {
+        print("pageViewController willTransitionTo")
         // Disable user interaction for the tab bar during the transition
     }
     
@@ -197,17 +205,20 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        print("atvc viewDidAppear")
 
         startVideoPlayback()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
+        print("atvc viewWillDisappear")
         super.viewWillDisappear(animated)
         
         stopVideoPlayback()
     }
     
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
+        print("atvc pageViewController didFinishAnimating")
         
         // Stop previous video player
         if let oldplayer = currentVideoView {
@@ -217,7 +228,6 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         currentVideoView = nil
         
         guard let currentViewController = pageViewController.viewControllers?.first as? VideoViewController else {
-            print("guard view")
             return
         }
 
@@ -226,5 +236,16 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         PlaybackManager.shared.setChannelIndex(index: currentViewController.channelIndex)
         currentVideoView = currentViewController
         currentVideoView?.resumePlayback()
+    }
+
+    @objc private func handleChannelsLoaded() {
+        print("handleChannelsLoaded")
+        // Recreate view controllers with new channels
+        viewControllers.removeAll()
+        customizeViewControllers()
+        
+        // Completely reset the page view controller
+        setupPageViewController()
+        print("done loading channels")
     }
 }

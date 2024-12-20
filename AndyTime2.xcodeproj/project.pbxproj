@@ -11,6 +11,7 @@
 		B812B1A12A5112E5000126B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B812B1A02A5112E5000126B1 /* Assets.xcassets */; };
 		B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AB2A5119E7000126B1 /* VideoViewController.swift */; };
 		B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B812B1AD2A511D99000126B1 /* StartViewController.swift */; };
+		B8271FD22D15B5A500BD6F8A /* PhotoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8271FD12D15B5A500BD6F8A /* PhotoViewController.swift */; };
 		B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008DE2D0B536100C83F1D /* AndyViewController.swift */; };
 		B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E02D11BE7600C83F1D /* AdminViewController.swift */; };
 		B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E22D11C5A500C83F1D /* PlaybackManager.swift */; };
@@ -33,6 +34,7 @@
 		B812B1A52A5112E5000126B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B812B1AB2A5119E7000126B1 /* VideoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoViewController.swift; sourceTree = "<group>"; };
 		B812B1AD2A511D99000126B1 /* StartViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartViewController.swift; sourceTree = "<group>"; };
+		B8271FD12D15B5A500BD6F8A /* PhotoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoViewController.swift; sourceTree = "<group>"; };
 		B87008DE2D0B536100C83F1D /* AndyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndyViewController.swift; sourceTree = "<group>"; };
 		B87008E02D11BE7600C83F1D /* AdminViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViewController.swift; sourceTree = "<group>"; };
 		B87008E22D11C5A500C83F1D /* PlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackManager.swift; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 		B812B1962A5112E5000126B1 /* AndyTime2 */ = {
 			isa = PBXGroup;
 			children = (
+				B8271FD12D15B5A500BD6F8A /* PhotoViewController.swift */,
 				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
@@ -202,6 +205,7 @@
 				B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */,
 				B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */,
 				B812B1982A5112E5000126B1 /* AppDelegate.swift in Sources */,
+				B8271FD22D15B5A500BD6F8A /* PhotoViewController.swift in Sources */,
 				B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */,
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
 			);
