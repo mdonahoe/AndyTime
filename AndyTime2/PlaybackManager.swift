@@ -2,7 +2,12 @@ import Foundation
 import AVKit
 
 class PlaybackManager {
-    static let shared = PlaybackManager()
+    static var shared = PlaybackManager()
+    
+    // Add reset method for testing
+    static func resetForTesting() {
+        shared = PlaybackManager()
+    }
     
     // Notification name for time updates
     static let playbackTimeDidChange = Notification.Name("playbackTimeDidChange")
@@ -24,8 +29,7 @@ class PlaybackManager {
         channels = []
         channelVideos = [:]
         videoDurations = [:]
-        loadVideos()
-        print("done loading videos")
+        print("created")
     }
     
     // Current playback time in seconds

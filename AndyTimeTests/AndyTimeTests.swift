@@ -11,7 +11,13 @@ import Foundation
 
 struct AndyTimeTests {
 
+    func setUp() {
+        PlaybackManager.resetForTesting()
+    }
+
     @Test func testCalculatePlaylistPosition() async throws {
+        PlaybackManager.resetForTesting()
+        
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
         // Test case 1: Simple playlist, time within first video
         let result1 = PlaybackManager.shared.calculatePlaylistPosition(
@@ -63,6 +69,8 @@ struct AndyTimeTests {
     }
 
     @Test func testGetState() async throws {
+        PlaybackManager.resetForTesting()
+        
         // Add some videos to the playlist
         PlaybackManager.shared.addVideo(url: "file:///Foo/animals-bear.mp4", duration: 60)
         PlaybackManager.shared.addVideo(url: "file:///Foo/animals-cat.mp4", duration: 30)

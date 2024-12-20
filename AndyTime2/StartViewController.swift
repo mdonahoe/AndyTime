@@ -20,6 +20,9 @@ class StartViewController: UIViewController {
     }
     
     override func viewDidAppear(_ animated: Bool) {
+        // Load the videos
+        PlaybackManager.shared.loadVideos()
+        
         // Create PhotoViewControllers for each jpg file
         let photoUrls = getJPGFileURLs()
         let photoViewControllers = photoUrls.map { PhotoViewController(url: $0) }
