@@ -24,7 +24,7 @@ class VideoViewController: UIViewController {
             name: PlaybackManager.playbackTimeDidChange, 
             object: nil)
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         print("viewWillAppear \(name)")
@@ -49,8 +49,9 @@ class VideoViewController: UIViewController {
     
     @objc private func playerDidFinishPlaying() {
         print("playerDidFinishPlaying \(name)")
-        // playNextVideo()
         // TODO(matt): Alert the PlaybackManager!
+        // TODO(matt): could there be a race condition here?
+        self.resumePlayback()
     }
     
     func resumePlayback() {
