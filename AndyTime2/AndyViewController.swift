@@ -42,7 +42,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         customizeViewControllers()
         setupPageViewController()
         setupCustomTabBar()
-                // Add observer for channel loading
+        // Add observer for channel loading
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleChannelsLoaded),
@@ -88,6 +88,13 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         pageViewController = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal, options: nil)
         pageViewController.dataSource = self
         pageViewController.delegate = self
+        
+        // Add this line to hide the dots
+        pageViewController.view.subviews.forEach { view in
+            if let pageControl = view as? UIPageControl {
+                pageControl.isHidden = true
+            }
+        }
         
         // Set the first view controller
         if let firstViewController = viewControllers.first {
@@ -218,16 +225,19 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     }
     
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
-        print("atvc pageViewController didFinishAnimating")
-        
-        // Stop previous video player
-        if let oldplayer = currentVideoView {
-            print("pausing old player view")
+        if let oldplayer = currentVideoView, oldplayer != pageViewController.viewControllers?.first as? VideoViewController {
+            // The new video is different. Stop the old one.
             oldplayer.stopVideo()
         }
-        currentVideoView = nil
-        
+
         guard let currentViewController = pageViewController.viewControllers?.first as? VideoViewController else {
+            // Not playing a video. set to nil
+            currentVideoView = nil
+            return
+        }
+        
+        if currentVideoView == currentViewController {
+            // the video didn't change, exit.
             return
         }
 

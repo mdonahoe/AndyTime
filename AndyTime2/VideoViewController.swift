@@ -10,6 +10,22 @@ class VideoViewController: UIViewController {
     private var playerItemObserver: NSObjectProtocol?
     private var playing: Bool = false
     
+    // Add a black background view
+    private let blackBackgroundView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .black
+        return view
+    }()
+    
+    // Add this property near the top with other properties
+    private let nameLabel: UILabel = {
+        var label = UILabel()
+        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.textColor = .white
+        label.alpha = 0
+        return label
+    }()
+    
     convenience init(name: String, channelIndex: Int) {
         self.init()
         self.name = name
@@ -18,8 +34,22 @@ class VideoViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Add black background view first
+        view.addSubview(blackBackgroundView)
+        blackBackgroundView.frame = view.bounds
+        
+
+        
         setupPlayer()
-        NotificationCenter.default.addObserver(self, 
+        
+        // Add and position the name label
+        view.addSubview(nameLabel)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            nameLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            nameLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16)
+        ])
+        NotificationCenter.default.addObserver(self,
             selector: #selector(handleTimeUpdate), 
             name: PlaybackManager.playbackTimeDidChange, 
             object: nil)
@@ -29,12 +59,18 @@ class VideoViewController: UIViewController {
         super.viewWillAppear(animated)
         print("viewWillAppear \(name)")
         let state = PlaybackManager.shared.getState(for: self.channelIndex)
-        self.playVideo(videoUrl: URL(string: state.videoUrl)!, seekTime: state.playlistPosition.seekTime)
-        self.stopVideo()
+        if !playing {
+            print("not playing \(name), updating frame")
+            self.playVideo(videoUrl: URL(string: state.videoUrl)!, seekTime: state.playlistPosition.seekTime)
+            self.stopVideo()
+        } else {
+            print("is playing \(name), no-op")
+        }
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        blackBackgroundView.frame = view.bounds
         playerLayer?.frame = view.bounds
     }
     
@@ -60,7 +96,37 @@ class VideoViewController: UIViewController {
     }
     
     private func playVideo(videoUrl: URL, seekTime: TimeInterval) {
-        // Remove previous observer
+        // Extract the filename from the URL and show it
+        let videoName = videoUrl.lastPathComponent
+        nameLabel.text = videoName
+        nameLabel.alpha = 1
+        
+        // Fade out after 5 seconds
+        UIView.animate(withDuration: 1.0, delay: 3.0) {
+            self.nameLabel.alpha = 0
+        }
+
+        // Check if we're already playing this URL
+        if let currentItem = player?.currentItem,
+           let currentURL = (currentItem.asset as? AVURLAsset)?.url,
+           currentURL == videoUrl {
+            print("same video \(name)")
+            if playing {
+            print("already playing \(name)")
+            // TODO(matt): check the time
+            return
+        }
+            // Same video, just seek to new position
+            let t = CMTime(seconds: seekTime, preferredTimescale: 600)
+            player?.seek(to: t)
+            if !playing {
+                playing = true
+                player?.play()
+            }
+            return
+        }
+        print("different video \(name)")
+        // Different video, proceed with full replacement
         if let observer = playerItemObserver {
             NotificationCenter.default.removeObserver(observer)
             playerItemObserver = nil
@@ -69,15 +135,15 @@ class VideoViewController: UIViewController {
         let playerItem = AVPlayerItem(url: videoUrl)
         player?.replaceCurrentItem(with: playerItem)
         
-        // Add new observer for the new item
         playerItemObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: .main) { [weak self] _ in
                 self?.playerDidFinishPlaying()
         }
+        
         playing = true
-        let t = CMTime(seconds: seekTime, preferredTimescale: 600) // Why 600?
+        let t = CMTime(seconds: seekTime, preferredTimescale: 600)
         player?.seek(to: t)
         player?.play()
     }

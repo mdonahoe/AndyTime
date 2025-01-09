@@ -54,7 +54,7 @@ class AdminViewController: UIViewController {
             timeLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             timeLabel.topAnchor.constraint(equalTo: adminLabel.bottomAnchor, constant: 20)
         ])
-        timeLabel.text = "00:00:00" // TODO
+        timeLabel.text = "00:00:00"
         
         // Configure state label
         stateLabel.textColor = .white

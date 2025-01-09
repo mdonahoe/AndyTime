@@ -15,7 +15,7 @@ class StartViewController: UIViewController {
     private func getJPGFileURLs() -> [URL] {
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let jpgFiles = try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension.lowercased() == "jpg" }
+            .filter { $0.pathExtension.lowercased() == "jpg" || $0.pathExtension.lowercased() == "heic" }
         return jpgFiles ?? []
     }
     
