@@ -1,6 +1,28 @@
 import AVFoundation
 import AVKit
 
+/// A view controller that displays video playback for a single channel.
+///
+/// `VideoViewController` handles all aspects of video playback for one channel in the app.
+/// Each instance is associated with a specific channel index and displays videos from that channel.
+///
+/// ## Key Features
+/// - Uses `AVPlayer` and `AVPlayerLayer` for video rendering
+/// - Displays the video filename as an overlay label that fades out after 5 seconds
+/// - Black background that fills the screen
+/// - Responds to playback time change notifications from `PlaybackManager`
+///
+/// ## Playback Logic
+/// When `resumePlayback()` is called:
+/// 1. Queries `PlaybackManager` for the current playback state
+/// 2. Determines which video should be playing based on elapsed time
+/// 3. If the same video is already loaded, seeks to the correct position
+/// 4. If a different video is needed, replaces the player item entirely
+///
+/// ## Video Completion
+/// When a video finishes playing, the controller automatically advances to the next video
+/// in the channel by calling `resumePlayback()` again, which recalculates the correct
+/// video and position based on the current time.
 class VideoViewController: UIViewController {
     
     var name : String = ""

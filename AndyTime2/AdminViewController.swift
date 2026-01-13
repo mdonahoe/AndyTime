@@ -8,13 +8,26 @@
 import Foundation
 import UIKit
 
-
-// This class provides info on what the app is doing
-// There are is a label for the current playback time.
-// There is also buttons that:
-// 1. advances playback time by 10 minutes
-// 2. rewinds playback time by 10 minutes
-// 3. resets playback time to 0
+/// A debug and control panel for managing playback state and viewing app information.
+///
+/// `AdminViewController` provides an administrative interface for testing and controlling
+/// the app's playback behavior. It is accessible as the leftmost page in the navigation.
+///
+/// ## Display Information
+/// - **Playback Time**: Shows elapsed time in a human-readable format (years, months, days, hours, minutes, seconds)
+/// - **State Label**: Displays current channel name, video title, playback progress percentage, and time remaining
+///
+/// ## Time Control Buttons
+/// - **-10m**: Rewinds the global playback time by 10 minutes
+/// - **Reset**: Resets playback time to the current moment (starts fresh from now)
+/// - **+10m**: Advances the global playback time by 10 minutes
+///
+/// ## Channel Navigation
+/// - **Prev Channel**: Switches to the previous channel (with wraparound)
+/// - **Next Channel**: Switches to the next channel (with wraparound)
+///
+/// The controller observes `PlaybackManager.playbackTimeDidChange` notifications to keep
+/// its display updated in real-time as time advances or is manually adjusted.
 class AdminViewController: UIViewController {
     
     private let timeLabel = UILabel()
