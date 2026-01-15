@@ -45,6 +45,7 @@ class PlaybackManager {
     private var videoDurations: Dictionary<String, TimeInterval>
     private var channelVideos: Dictionary<String, [String]>
     private var channels: [String]
+    private var channelTimeOffsets: Dictionary<Int, TimeInterval>
     
     private init() {
         startTime = ISO8601DateFormatter().date(from: "2019-01-09T02:20:00Z")!
@@ -53,6 +54,7 @@ class PlaybackManager {
         channels = []
         channelVideos = [:]
         videoDurations = [:]
+        channelTimeOffsets = [:]
         print("created")
     }
     
@@ -123,7 +125,20 @@ class PlaybackManager {
         startTime = Date()
         notifyTimeChange()
     }
-    
+
+    /// Increments the individual time offset for a specific channel.
+    /// This is called when the user swipes away from a video, advancing that channel by 10 seconds.
+    func incrementChannelOffset(channelIndex: Int, by seconds: TimeInterval = 10) {
+        let currentOffset = channelTimeOffsets[channelIndex] ?? 0
+        channelTimeOffsets[channelIndex] = currentOffset + seconds
+        print("Channel \(channelIndex) offset increased to \(channelTimeOffsets[channelIndex]!) seconds")
+    }
+
+    /// Gets the individual time offset for a specific channel.
+    func getChannelOffset(channelIndex: Int) -> TimeInterval {
+        return channelTimeOffsets[channelIndex] ?? 0
+    }
+
     private func notifyTimeChange() {
         NotificationCenter.default.post(name: PlaybackManager.playbackTimeDidChange,
                                      object: nil, 
@@ -197,7 +212,9 @@ class PlaybackManager {
         let channelName = channels[channelIndex]
         let videos = channelVideos[channelName] ?? []
         let durations = videos.map { videoDurations[$0] ?? 0 }
-        let playbackTime = currentPlaybackTime
+        // Include individual channel offset in addition to global time
+        let channelOffset = channelTimeOffsets[channelIndex] ?? 0
+        let playbackTime = currentPlaybackTime + channelOffset
         let playlistPosition = calculatePlaylistPosition(playbackTime: playbackTime, videoDurations: durations)
         let videoUrl : String = videos[playlistPosition.videoIndex]
         let videoTitle = String(String(videoUrl.split(separator: "/").last!).split(separator: "-", maxSplits: 1).last!)
