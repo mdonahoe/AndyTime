@@ -1,6 +1,30 @@
 import Foundation
 import AVKit
 
+/// The central singleton that manages video organization, playback state, and time synchronization.
+///
+/// `PlaybackManager` is the core state manager for the entire app. It provides:
+///
+/// ## Video Organization
+/// - Scans the documents directory for MP4 files
+/// - Groups videos into channels based on filename prefix (e.g., "animals-bear.mp4" → channel "animals")
+/// - Loads and caches video durations asynchronously
+///
+/// ## Time Management
+/// - Maintains a global playback time starting from a fixed date (2019-01-09T02:20:00Z)
+/// - All channels share this synchronized playback time
+/// - Supports advancing, rewinding, and resetting the playback time
+///
+/// ## Playback State
+/// - Calculates which video should be playing for any channel at the current time
+/// - Determines the seek position within that video
+/// - Handles playlist looping when videos complete
+///
+/// ## Notifications
+/// - Posts `playbackTimeDidChange` when time is adjusted
+/// - Posts `channelsDidLoad` when video indexing completes
+///
+/// Access via the `shared` singleton instance.
 class PlaybackManager {
     static var shared = PlaybackManager()
     

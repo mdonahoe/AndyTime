@@ -9,14 +9,30 @@ import UIKit
 import AVFoundation
 import AVKit
 
-/* 
- This class is the main view controller for the app.
-
- It is a UIPageViewController that contains a custom tab bar at the bottom.
- The view controllers are either VideoViewController or generic UIViewController.
- The VideoViewController is a subclass of UIViewController that contains an AVPlayer.
- The UIViewController is a generic view controller that contains a UIView.
-*/
+/// The main navigation controller that manages swipe-based page navigation between all content.
+///
+/// `AndyViewController` is the primary UI controller that users interact with. It uses a
+/// `UIPageViewController` to enable horizontal swipe navigation between different views.
+///
+/// ## View Controller Order
+/// The pages are arranged in this order from left to right:
+/// 1. `AdminViewController` - Debug and control panel
+/// 2. `VideoViewController` instances - One for each video channel from `PlaybackManager`
+/// 3. `PhotoViewController` instances - One for each photo in the documents directory
+/// 4. Placeholder views (green at start, red at end) for visual boundaries
+///
+/// ## Key Responsibilities
+/// - Manages the page view controller lifecycle and transitions
+/// - Coordinates video playback start/stop when navigating between pages
+/// - Displays a custom tab bar at the bottom of the screen
+/// - Responds to channel loading notifications to rebuild the view hierarchy
+/// - Handles device orientation changes
+///
+/// ## Video Playback Coordination
+/// When the user swipes to a new page:
+/// - The previous video (if any) is paused
+/// - The new video (if navigating to a `VideoViewController`) resumes from the correct position
+/// - The `PlaybackManager` is notified of the channel change
 class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
     
     private var extraViews: [UIViewController]

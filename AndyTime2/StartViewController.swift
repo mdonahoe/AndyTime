@@ -2,10 +2,17 @@ import UIKit
 import Foundation
 import Photos
 
-
-// This class is a wrapper around the AndyViewController.
-// It is used to present the AndyViewController when the app is launched.
-// It fetches the videos from the apps documents directory.
+/// The initial view controller that handles app startup and content loading.
+///
+/// `StartViewController` serves as a loading bridge between app launch and the main UI.
+/// It performs the following initialization tasks:
+/// - Loads all MP4 videos from the app's documents directory via `PlaybackManager`
+/// - Scans for JPG and HEIC photos in the documents directory
+/// - Creates `PhotoViewController` instances for each discovered image
+/// - Presents the main `AndyViewController` with all content ready for display
+///
+/// This controller is displayed briefly at launch while content is being indexed,
+/// then immediately presents the full-screen `AndyViewController`.
 class StartViewController: UIViewController {
     
     override func viewDidLoad() {
