@@ -244,6 +244,8 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         if let oldplayer = currentVideoView, oldplayer != pageViewController.viewControllers?.first as? VideoViewController {
             // The new video is different. Stop the old one.
             oldplayer.stopVideo()
+            // Increment the channel offset for the video we just swiped away from
+            PlaybackManager.shared.incrementChannelOffset(channelIndex: oldplayer.channelIndex)
         }
 
         guard let currentViewController = pageViewController.viewControllers?.first as? VideoViewController else {
@@ -251,7 +253,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             currentVideoView = nil
             return
         }
-        
+
         if currentVideoView == currentViewController {
             // the video didn't change, exit.
             return
