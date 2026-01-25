@@ -21,6 +21,8 @@ import AVKit
 /// 3. `PhotoViewController` instances - One for each photo in the documents directory
 /// 4. Placeholder views (green at start, red at end) for visual boundaries
 ///
+/// At launch, the app displays the first `VideoViewController` rather than the admin view.
+///
 /// ## Key Responsibilities
 /// - Manages the page view controller lifecycle and transitions
 /// - Coordinates video playback start/stop when navigating between pages
@@ -112,9 +114,10 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             }
         }
         
-        // Set the first view controller
-        if let firstViewController = viewControllers.first {
-            pageViewController.setViewControllers([firstViewController], direction: .forward, animated: true, completion: nil)
+        // Set the initial view controller to the first video channel (skip admin and green boundary)
+        let firstVideoController = viewControllers.first { $0 is VideoViewController }
+        if let initialViewController = firstVideoController ?? viewControllers.first {
+            pageViewController.setViewControllers([initialViewController], direction: .forward, animated: true, completion: nil)
         }
         
         // Add the page view controller as a child view controller
