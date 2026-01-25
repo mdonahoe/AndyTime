@@ -30,10 +30,7 @@ class VideoViewController: UIViewController {
     var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
     private var playerItemObserver: NSObjectProtocol?
-    private var stallObserver: NSObjectProtocol?
-    private var errorObserver: NSObjectProtocol?
-    private var playbackCheckTimer: Timer?
-    private var playing: Bool = false
+    private(set) var playing: Bool = false
     
     // Add a black background view
     private let blackBackgroundView: UIView = {
@@ -106,55 +103,6 @@ class VideoViewController: UIViewController {
         if let playerLayer = playerLayer {
             view.layer.addSublayer(playerLayer)
         }
-
-        // Observe playback stalls
-        stallObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemPlaybackStalled,
-            object: nil,
-            queue: .main) { [weak self] _ in
-                print("Playback stalled, attempting to resume...")
-                self?.handlePlaybackInterruption()
-        }
-
-        // Observe player errors
-        errorObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemFailedToPlayToEndTime,
-            object: nil,
-            queue: .main) { [weak self] _ in
-                print("Playback failed, attempting to resume...")
-                self?.handlePlaybackInterruption()
-        }
-    }
-
-    private func startPlaybackMonitor() {
-        stopPlaybackMonitor()
-        playbackCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.checkPlaybackStatus()
-        }
-    }
-
-    private func stopPlaybackMonitor() {
-        playbackCheckTimer?.invalidate()
-        playbackCheckTimer = nil
-    }
-
-    private func checkPlaybackStatus() {
-        guard playing else { return }
-        guard let player = player else { return }
-
-        // If we should be playing but the player is paused, resume
-        if player.timeControlStatus == .paused {
-            print("Video unexpectedly paused, resuming...")
-            player.play()
-        }
-    }
-
-    private func handlePlaybackInterruption() {
-        guard playing else { return }
-        // Brief delay then resume playback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.resumePlayback()
-        }
     }
     
     @objc private func playerDidFinishPlaying() {
@@ -196,7 +144,6 @@ class VideoViewController: UIViewController {
             if !playing {
                 playing = true
                 player?.play()
-                startPlaybackMonitor()
             }
             return
         }
@@ -221,23 +168,11 @@ class VideoViewController: UIViewController {
         let t = CMTime(seconds: seekTime, preferredTimescale: 600)
         player?.seek(to: t)
         player?.play()
-        startPlaybackMonitor()
     }
 
     func stopVideo() {
         playing = false
-        stopPlaybackMonitor()
         player?.pause()
-    }
-
-    deinit {
-        stopPlaybackMonitor()
-        if let observer = stallObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = errorObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
     
     @objc private func handleTimeUpdate(_ notification: Notification) {
