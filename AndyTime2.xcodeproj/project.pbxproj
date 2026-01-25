@@ -15,6 +15,7 @@
 		B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008DE2D0B536100C83F1D /* AndyViewController.swift */; };
 		B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E02D11BE7600C83F1D /* AdminViewController.swift */; };
 		B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E22D11C5A500C83F1D /* PlaybackManager.swift */; };
+		B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F00002AAAA000100000002 /* InfoViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,6 +40,7 @@
 		B87008E02D11BE7600C83F1D /* AdminViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViewController.swift; sourceTree = "<group>"; };
 		B87008E22D11C5A500C83F1D /* PlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackManager.swift; sourceTree = "<group>"; };
 		B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AndyTimeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B8F00002AAAA000100000002 /* InfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -88,6 +90,7 @@
 				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
+				B8F00002AAAA000100000002 /* InfoViewController.swift */,
 				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
 				B812B1AB2A5119E7000126B1 /* VideoViewController.swift */,
@@ -208,6 +211,7 @@
 				B8271FD22D15B5A500BD6F8A /* PhotoViewController.swift in Sources */,
 				B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */,
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
+				B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

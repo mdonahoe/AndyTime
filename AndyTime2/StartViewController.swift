@@ -29,11 +29,21 @@ class StartViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         // Load the videos
         PlaybackManager.shared.loadVideos()
-        
+
+        // Check if there are any videos
+        let videoUrls = PlaybackManager.shared.getMP4FileURLs()
+        if videoUrls.isEmpty {
+            // No videos found, show info page
+            let infoViewController = InfoViewController()
+            infoViewController.modalPresentationStyle = .fullScreen
+            self.present(infoViewController, animated: true, completion: nil)
+            return
+        }
+
         // Create PhotoViewControllers for each jpg file
         let photoUrls = getJPGFileURLs()
         let photoViewControllers = photoUrls.map { PhotoViewController(url: $0) }
-        
+
         // Create and present the AndyViewController with the photo views
         let viewController = AndyViewController(extras: photoViewControllers)
         viewController.modalPresentationStyle = .fullScreen
