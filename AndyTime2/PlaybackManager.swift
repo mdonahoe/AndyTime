@@ -14,6 +14,7 @@ import AVKit
 /// - Maintains a global playback time starting from a fixed date (2019-01-09T02:20:00Z)
 /// - All channels share this synchronized playback time
 /// - Supports advancing, rewinding, and resetting the playback time
+/// - Rapid swipes build momentum, advancing channels by increasingly larger time offsets
 ///
 /// ## Playback State
 /// - Calculates which video should be playing for any channel at the current time
@@ -46,7 +47,14 @@ class PlaybackManager {
     private var channelVideos: Dictionary<String, [String]>
     private var channels: [String]
     private var channelTimeOffsets: Dictionary<Int, TimeInterval>
-    
+
+    // Swipe momentum tracking
+    private var lastSwipeTime: Date?
+    private var swipeMomentum: Int = 1
+    private let rapidSwipeThreshold: TimeInterval = 1.5 // seconds between swipes to be considered "rapid"
+    private let baseTimeOffset: TimeInterval = 10 // base seconds to add per swipe
+    private let maxMomentum: Int = 10 // maximum momentum multiplier
+
     private init() {
         startTime = ISO8601DateFormatter().date(from: "2019-01-09T02:20:00Z")!
         currentVideoIndex = 0
@@ -127,11 +135,35 @@ class PlaybackManager {
     }
 
     /// Increments the individual time offset for a specific channel.
-    /// This is called when the user swipes away from a video, advancing that channel by 10 seconds.
-    func incrementChannelOffset(channelIndex: Int, by seconds: TimeInterval = 10) {
+    /// This is called when the user swipes away from a video.
+    /// Rapid swipes build momentum, advancing time by increasingly larger amounts.
+    func incrementChannelOffset(channelIndex: Int) {
+        let now = Date()
+
+        // Check if this is a rapid swipe
+        if let lastSwipe = lastSwipeTime {
+            let timeSinceLastSwipe = now.timeIntervalSince(lastSwipe)
+            if timeSinceLastSwipe < rapidSwipeThreshold {
+                // Rapid swipe detected - increase momentum
+                swipeMomentum = min(swipeMomentum + 1, maxMomentum)
+            } else {
+                // Too slow - reset momentum
+                swipeMomentum = 1
+            }
+        }
+
+        lastSwipeTime = now
+
+        // Calculate time offset with momentum
+        let timeToAdd = baseTimeOffset * TimeInterval(swipeMomentum)
         let currentOffset = channelTimeOffsets[channelIndex] ?? 0
-        channelTimeOffsets[channelIndex] = currentOffset + seconds
-        print("Channel \(channelIndex) offset increased to \(channelTimeOffsets[channelIndex]!) seconds")
+        channelTimeOffsets[channelIndex] = currentOffset + timeToAdd
+        print("Channel \(channelIndex) offset increased by \(timeToAdd)s (momentum: \(swipeMomentum)x) to \(channelTimeOffsets[channelIndex]!)s total")
+    }
+
+    /// Gets the current swipe momentum multiplier.
+    func getSwipeMomentum() -> Int {
+        return swipeMomentum
     }
 
     /// Gets the individual time offset for a specific channel.
