@@ -36,12 +36,17 @@ import AVKit
 /// - The new video (if navigating to a `VideoViewController`) resumes from the correct position
 /// - The `PlaybackManager` is notified of the channel change
 class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
-    
+
     private var extraViews: [UIViewController]
     private var pageViewController: UIPageViewController!
     private var viewControllers: [UIViewController] = []
     private var customTabBar: UIView!
     private var currentVideoView: VideoViewController?
+
+    // App-wide playback monitoring
+    private var playbackCheckTimer: Timer?
+    private var stallObserver: NSObjectProtocol?
+    private var errorObserver: NSObjectProtocol?
 
     
     init(extras: [UIViewController]) {
@@ -233,14 +238,76 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         super.viewDidAppear(animated)
         print("atvc viewDidAppear")
 
+        setupPlaybackMonitoring()
         startVideoPlayback()
     }
-    
+
     override func viewWillDisappear(_ animated: Bool) {
         print("atvc viewWillDisappear")
         super.viewWillDisappear(animated)
-        
+
+        teardownPlaybackMonitoring()
         stopVideoPlayback()
+    }
+
+    // MARK: - App-wide Playback Monitoring
+
+    private func setupPlaybackMonitoring() {
+        // Start periodic check timer
+        playbackCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.checkActiveVideoPlayback()
+        }
+
+        // Observe playback stalls
+        stallObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: nil,
+            queue: .main) { [weak self] _ in
+                print("Playback stalled, attempting to resume active video...")
+                self?.handlePlaybackInterruption()
+        }
+
+        // Observe player errors
+        errorObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: nil,
+            queue: .main) { [weak self] _ in
+                print("Playback failed, attempting to resume active video...")
+                self?.handlePlaybackInterruption()
+        }
+    }
+
+    private func teardownPlaybackMonitoring() {
+        playbackCheckTimer?.invalidate()
+        playbackCheckTimer = nil
+
+        if let observer = stallObserver {
+            NotificationCenter.default.removeObserver(observer)
+            stallObserver = nil
+        }
+        if let observer = errorObserver {
+            NotificationCenter.default.removeObserver(observer)
+            errorObserver = nil
+        }
+    }
+
+    private func checkActiveVideoPlayback() {
+        guard let activeVideo = currentVideoView, activeVideo.playing else { return }
+        guard let player = activeVideo.player else { return }
+
+        // If the active video should be playing but the player is paused, resume
+        if player.timeControlStatus == .paused {
+            print("Active video unexpectedly paused, resuming...")
+            player.play()
+        }
+    }
+
+    private func handlePlaybackInterruption() {
+        guard let activeVideo = currentVideoView, activeVideo.playing else { return }
+        // Brief delay then resume the active video
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.currentVideoView?.resumePlayback()
+        }
     }
     
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool, previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {

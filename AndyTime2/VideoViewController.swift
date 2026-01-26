@@ -24,13 +24,13 @@ import AVKit
 /// in the channel by calling `resumePlayback()` again, which recalculates the correct
 /// video and position based on the current time.
 class VideoViewController: UIViewController {
-    
+
     var name : String = ""
     var channelIndex : Int = 0
     var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
     private var playerItemObserver: NSObjectProtocol?
-    private var playing: Bool = false
+    private(set) var playing: Bool = false
     
     // Add a black background view
     private let blackBackgroundView: UIView = {
@@ -169,7 +169,7 @@ class VideoViewController: UIViewController {
         player?.seek(to: t)
         player?.play()
     }
-    
+
     func stopVideo() {
         playing = false
         player?.pause()
