@@ -30,15 +30,16 @@ class VideoViewController: UIViewController {
     var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
     private var playerItemObserver: NSObjectProtocol?
+    private var timeObserver: Any?
     private(set) var playing: Bool = false
-    
+
     // Add a black background view
     private let blackBackgroundView: UIView = {
         let view = UIView()
         view.backgroundColor = .black
         return view
     }()
-    
+
     // Add this property near the top with other properties
     private let nameLabel: UILabel = {
         var label = UILabel()
@@ -47,6 +48,29 @@ class VideoViewController: UIViewController {
         label.alpha = 0
         return label
     }()
+
+    // Progress bar views
+    private let progressBarTrack: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor.white.withAlphaComponent(0.3)
+        return view
+    }()
+
+    private let progressBarFill: UIView = {
+        let view = UIView()
+        view.backgroundColor = .white
+        return view
+    }()
+
+    private let timeRemainingLabel: UILabel = {
+        let label = UILabel()
+        label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        label.textColor = .white
+        label.alpha = 0.8
+        return label
+    }()
+
+    private var progressBarFillWidthConstraint: NSLayoutConstraint?
     
     convenience init(name: String, channelIndex: Int) {
         self.init()
@@ -59,11 +83,9 @@ class VideoViewController: UIViewController {
         // Add black background view first
         view.addSubview(blackBackgroundView)
         blackBackgroundView.frame = view.bounds
-        
 
-        
         setupPlayer()
-        
+
         // Add and position the name label
         view.addSubview(nameLabel)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -71,9 +93,12 @@ class VideoViewController: UIViewController {
             nameLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
             nameLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16)
         ])
+
+        setupProgressBar()
+
         NotificationCenter.default.addObserver(self,
-            selector: #selector(handleTimeUpdate), 
-            name: PlaybackManager.playbackTimeDidChange, 
+            selector: #selector(handleTimeUpdate),
+            name: PlaybackManager.playbackTimeDidChange,
             object: nil)
     }
 
@@ -103,6 +128,61 @@ class VideoViewController: UIViewController {
         if let playerLayer = playerLayer {
             view.layer.addSublayer(playerLayer)
         }
+
+        // Add periodic time observer for progress bar updates
+        let interval = CMTime(seconds: 0.5, preferredTimescale: 600)
+        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            self?.updateProgressBar()
+        }
+    }
+
+    private func setupProgressBar() {
+        let barHeight: CGFloat = 3
+
+        view.addSubview(progressBarTrack)
+        progressBarTrack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            progressBarTrack.topAnchor.constraint(equalTo: view.topAnchor),
+            progressBarTrack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            progressBarTrack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            progressBarTrack.heightAnchor.constraint(equalToConstant: barHeight)
+        ])
+
+        progressBarTrack.addSubview(progressBarFill)
+        progressBarFill.translatesAutoresizingMaskIntoConstraints = false
+        let fillWidth = progressBarFill.widthAnchor.constraint(equalToConstant: 0)
+        progressBarFillWidthConstraint = fillWidth
+        NSLayoutConstraint.activate([
+            progressBarFill.topAnchor.constraint(equalTo: progressBarTrack.topAnchor),
+            progressBarFill.leadingAnchor.constraint(equalTo: progressBarTrack.leadingAnchor),
+            progressBarFill.bottomAnchor.constraint(equalTo: progressBarTrack.bottomAnchor),
+            fillWidth
+        ])
+
+        view.addSubview(timeRemainingLabel)
+        timeRemainingLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            timeRemainingLabel.topAnchor.constraint(equalTo: progressBarTrack.bottomAnchor, constant: 4),
+            timeRemainingLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8)
+        ])
+    }
+
+    private func updateProgressBar() {
+        guard let currentItem = player?.currentItem,
+              currentItem.status == .readyToPlay else { return }
+
+        let duration = currentItem.duration.seconds
+        guard duration.isFinite && duration > 0 else { return }
+
+        let currentTime = player?.currentTime().seconds ?? 0
+        let progress = min(max(currentTime / duration, 0), 1)
+        let trackWidth = progressBarTrack.bounds.width
+        progressBarFillWidthConstraint?.constant = trackWidth * CGFloat(progress)
+
+        let remaining = max(duration - currentTime, 0)
+        let minutes = Int(remaining) / 60
+        let seconds = Int(remaining) % 60
+        timeRemainingLabel.text = String(format: "-%d:%02d", minutes, seconds)
     }
     
     @objc private func playerDidFinishPlaying() {
@@ -177,6 +257,12 @@ class VideoViewController: UIViewController {
     
     @objc private func handleTimeUpdate(_ notification: Notification) {
         print("handleTimeUpdate \(name)")
+    }
+
+    deinit {
+        if let timeObserver = timeObserver {
+            player?.removeTimeObserver(timeObserver)
+        }
     }
 
 }
