@@ -4,7 +4,6 @@
 // Required Snack dependencies (add in the sidebar):
 //   expo-camera  ~16.0.0
 //   expo-av      ~15.0.0
-//   expo-file-system ~18.0.0
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -21,7 +20,6 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
 
 // ─── Claude API ──────────────────────────────────────────────────────
 const DEFAULT_PROMPT =
@@ -77,11 +75,10 @@ async function analyzePhoto(base64Image, apiKey, prompt) {
 
 // ─── Alarm ───────────────────────────────────────────────────────────
 let alarmSound = null;
+let alarmWavUri = null;
 
-async function generateAlarmWav() {
-  const path = FileSystem.cacheDirectory + 'alarm.wav';
-  const info = await FileSystem.getInfoAsync(path);
-  if (info.exists) return path;
+function generateAlarmDataUri() {
+  if (alarmWavUri) return alarmWavUri;
 
   const sampleRate = 8000;
   const duration = 2;
@@ -123,12 +120,8 @@ async function generateAlarmWav() {
   const bytes = new Uint8Array(buf);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  const b64 = btoa(binary);
-
-  await FileSystem.writeAsStringAsync(path, b64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return path;
+  alarmWavUri = 'data:audio/wav;base64,' + btoa(binary);
+  return alarmWavUri;
 }
 
 async function playAlarm() {
@@ -137,7 +130,7 @@ async function playAlarm() {
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
     });
-    const uri = await generateAlarmWav();
+    const uri = generateAlarmDataUri();
     const { sound } = await Audio.Sound.createAsync({ uri });
     alarmSound = sound;
     sound.setOnPlaybackStatusUpdate((status) => {
