@@ -17,6 +17,10 @@ import {
   Vibration,
   SafeAreaView,
   StatusBar,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Audio } from 'expo-av';
@@ -292,59 +296,71 @@ export default function App() {
 
       {/* ── Settings modal ── */}
       <Modal visible={showSettings} animationType="slide" transparent>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
-            <Text style={s.modalTitle}>Settings</Text>
-
-            <Text style={s.label}>Anthropic API Key</Text>
-            <TextInput
-              style={s.input}
-              value={apiKey}
-              onChangeText={setApiKey}
-              placeholder="sk-ant-..."
-              placeholderTextColor="#666"
-              secureTextEntry
-              autoCapitalize="none"
-            />
-
-            <Text style={s.label}>Prompt</Text>
-            <TextInput
-              style={[s.input, { height: 100 }]}
-              value={prompt}
-              onChangeText={setPrompt}
-              multiline
-              placeholderTextColor="#666"
-            />
-
-            <Text style={s.label}>Interval: {intervalSec}s</Text>
-            <View style={s.stepper}>
-              <TouchableOpacity
-                style={s.stepBtn}
-                onPress={() => setIntervalSec((v) => Math.max(3, v - 1))}
-              >
-                <Text style={s.stepBtnText}>{'\u2212'}</Text>
-              </TouchableOpacity>
-              <View style={s.sliderTrack}>
-                <View
-                  style={[s.sliderFill, { width: ((intervalSec - 3) / 117) * 100 + '%' }]}
-                />
-              </View>
-              <TouchableOpacity
-                style={s.stepBtn}
-                onPress={() => setIntervalSec((v) => Math.min(120, v + 1))}
-              >
-                <Text style={s.stepBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[s.btn, { marginTop: 20, alignSelf: 'center', paddingHorizontal: 40 }]}
-              onPress={() => setShowSettings(false)}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            style={s.modalBg}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <ScrollView
+              contentContainerStyle={s.modalScroll}
+              keyboardShouldPersistTaps="handled"
             >
-              <Text style={s.btnText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              <View style={s.modal}>
+                <Text style={s.modalTitle}>Settings</Text>
+
+                <Text style={s.label}>Anthropic API Key</Text>
+                <TextInput
+                  style={s.input}
+                  value={apiKey}
+                  onChangeText={setApiKey}
+                  placeholder="sk-ant-..."
+                  placeholderTextColor="#666"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <Text style={s.label}>Prompt</Text>
+                <TextInput
+                  style={[s.input, { height: 100 }]}
+                  value={prompt}
+                  onChangeText={setPrompt}
+                  multiline
+                  placeholderTextColor="#666"
+                />
+
+                <Text style={s.label}>Interval: {intervalSec}s</Text>
+                <View style={s.stepper}>
+                  <TouchableOpacity
+                    style={s.stepBtn}
+                    onPress={() => setIntervalSec((v) => Math.max(3, v - 1))}
+                  >
+                    <Text style={s.stepBtnText}>{'\u2212'}</Text>
+                  </TouchableOpacity>
+                  <View style={s.sliderTrack}>
+                    <View
+                      style={[s.sliderFill, { width: ((intervalSec - 3) / 117) * 100 + '%' }]}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={s.stepBtn}
+                    onPress={() => setIntervalSec((v) => Math.min(120, v + 1))}
+                  >
+                    <Text style={s.stepBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[s.btn, { marginTop: 20, alignSelf: 'center', paddingHorizontal: 40 }]}
+                  onPress={() => setShowSettings(false)}
+                >
+                  <Text style={s.btnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -409,6 +425,9 @@ const s = StyleSheet.create({
   modalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  modalScroll: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
