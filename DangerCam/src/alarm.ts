@@ -1,27 +1,10 @@
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
 
 const SAMPLE_RATE = 8000;
 const DURATION = 2;
 const NUM_SAMPLES = SAMPLE_RATE * DURATION;
 
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-  const chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let result = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const a = bytes[i];
-    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    result += chars[a >> 2];
-    result += chars[((a & 3) << 4) | (b >> 4)];
-    result += i + 1 < bytes.length ? chars[((b & 15) << 2) | (c >> 6)] : '=';
-    result += i + 2 < bytes.length ? chars[c & 63] : '=';
-  }
-  return result;
-}
-
-function generateAlarmWav(): Uint8Array {
+function generateAlarmDataUri(): string {
   const dataSize = NUM_SAMPLES * 2; // 16-bit = 2 bytes per sample
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
@@ -56,26 +39,16 @@ function generateAlarmWav(): Uint8Array {
     view.setInt16(44 + i * 2, pcm, true);
   }
 
-  return bytes;
+  // Convert to base64 data URI
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return 'data:audio/wav;base64,' + btoa(binary);
 }
 
 let alarmSound: Audio.Sound | null = null;
-let alarmFileUri: string | null = null;
-
-async function ensureAlarmFile(): Promise<string> {
-  if (alarmFileUri) return alarmFileUri;
-
-  const wavBytes = generateAlarmWav();
-  const base64 = uint8ArrayToBase64(wavBytes);
-  const uri = FileSystem.cacheDirectory + 'alarm.wav';
-
-  await FileSystem.writeAsStringAsync(uri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-
-  alarmFileUri = uri;
-  return uri;
-}
+let alarmWavUri: string | null = null;
 
 export async function playAlarm(): Promise<void> {
   try {
@@ -86,8 +59,11 @@ export async function playAlarm(): Promise<void> {
       staysActiveInBackground: false,
     });
 
-    const uri = await ensureAlarmFile();
-    const { sound } = await Audio.Sound.createAsync({ uri });
+    if (!alarmWavUri) {
+      alarmWavUri = generateAlarmDataUri();
+    }
+
+    const { sound } = await Audio.Sound.createAsync({ uri: alarmWavUri });
     alarmSound = sound;
     await sound.playAsync();
 

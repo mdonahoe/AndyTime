@@ -10,6 +10,10 @@ import {
   SafeAreaView,
   Vibration,
   Dimensions,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
@@ -216,91 +220,104 @@ export default function CameraScreen() {
 
       {/* Settings modal */}
       <Modal visible={showSettings} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <SafeAreaView style={styles.modalSafe}>
-            <View style={styles.modal}>
-              <Text style={styles.modalTitle}>DangerCam Settings</Text>
-
-              <Text style={styles.label}>Anthropic API Key</Text>
-              <TextInput
-                style={styles.input}
-                value={apiKey}
-                onChangeText={setApiKey}
-                placeholder="sk-ant-api03-..."
-                placeholderTextColor="#666"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <Text style={styles.label}>Analysis Prompt</Text>
-              <TextInput
-                style={[styles.input, styles.promptInput]}
-                value={prompt}
-                onChangeText={setPrompt}
-                placeholder="What should Claude look for?"
-                placeholderTextColor="#666"
-                multiline
-                textAlignVertical="top"
-              />
-
-              <Text style={styles.label}>
-                Capture Interval: {intervalSec}s
-              </Text>
-              <View style={styles.stepperRow}>
-                <TouchableOpacity
-                  onPress={() =>
-                    setIntervalSec((v) =>
-                      Math.max(3, v - (v > 10 ? 5 : 1)),
-                    )
-                  }
-                  style={styles.stepperButton}
-                >
-                  <Text style={styles.stepperButtonText}>-</Text>
-                </TouchableOpacity>
-
-                <View style={styles.stepperTrack}>
-                  <View
-                    style={[
-                      styles.stepperFill,
-                      {
-                        width: `${((intervalSec - 3) / (120 - 3)) * 100}%`,
-                      },
-                    ]}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  onPress={() =>
-                    setIntervalSec((v) =>
-                      Math.min(120, v + (v >= 10 ? 5 : 1)),
-                    )
-                  }
-                  style={styles.stepperButton}
-                >
-                  <Text style={styles.stepperButtonText}>+</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.stepperHint}>
-                Range: 3s - 120s. Lower values use more API credits.
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => {
-                  if (apiKey.trim()) setShowSettings(false);
-                }}
-                style={[
-                  styles.primaryButton,
-                  !apiKey.trim() && styles.buttonDisabled,
-                ]}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            style={styles.modalBackdrop}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <SafeAreaView style={styles.modalSafe}>
+              <ScrollView
+                contentContainerStyle={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
               >
-                <Text style={styles.primaryButtonText}>
-                  {apiKey.trim() ? 'Done' : 'Enter API Key to Continue'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </View>
+                <View style={styles.modal}>
+                  <Text style={styles.modalTitle}>DangerCam Settings</Text>
+
+                  <Text style={styles.label}>Anthropic API Key</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={apiKey}
+                    onChangeText={setApiKey}
+                    placeholder="sk-ant-api03-..."
+                    placeholderTextColor="#666"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
+                  />
+
+                  <Text style={styles.label}>Analysis Prompt</Text>
+                  <TextInput
+                    style={[styles.input, styles.promptInput]}
+                    value={prompt}
+                    onChangeText={setPrompt}
+                    placeholder="What should Claude look for?"
+                    placeholderTextColor="#666"
+                    multiline
+                    textAlignVertical="top"
+                  />
+
+                  <Text style={styles.label}>
+                    Capture Interval: {intervalSec}s
+                  </Text>
+                  <View style={styles.stepperRow}>
+                    <TouchableOpacity
+                      onPress={() =>
+                        setIntervalSec((v) =>
+                          Math.max(3, v - (v > 10 ? 5 : 1)),
+                        )
+                      }
+                      style={styles.stepperButton}
+                    >
+                      <Text style={styles.stepperButtonText}>-</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.stepperTrack}>
+                      <View
+                        style={[
+                          styles.stepperFill,
+                          {
+                            width: `${((intervalSec - 3) / (120 - 3)) * 100}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        setIntervalSec((v) =>
+                          Math.min(120, v + (v >= 10 ? 5 : 1)),
+                        )
+                      }
+                      style={styles.stepperButton}
+                    >
+                      <Text style={styles.stepperButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.stepperHint}>
+                    Range: 3s - 120s. Lower values use more API credits.
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      if (apiKey.trim()) setShowSettings(false);
+                    }}
+                    style={[
+                      styles.primaryButton,
+                      !apiKey.trim() && styles.buttonDisabled,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {apiKey.trim() ? 'Done' : 'Enter API Key to Continue'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </SafeAreaView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -466,10 +483,12 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
   },
   modalSafe: {
     flex: 1,
+  },
+  modalScroll: {
+    flexGrow: 1,
     justifyContent: 'center',
   },
   modal: {
