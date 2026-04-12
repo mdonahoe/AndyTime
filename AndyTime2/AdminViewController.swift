@@ -37,10 +37,17 @@ class AdminViewController: UIViewController {
     private let resetButton = UIButton()
     private let nextChannelButton = UIButton()
     private let prevChannelButton = UIButton()
+    private let crashLogTextView = UITextView()
+    private let clearCrashButton = UIButton()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        refreshCrashLog()
     }
     
     private func setupUI() {
@@ -158,6 +165,50 @@ class AdminViewController: UIViewController {
         // Add button targets
         nextChannelButton.addTarget(self, action: #selector(nextChannel), for: .touchUpInside)
         prevChannelButton.addTarget(self, action: #selector(prevChannel), for: .touchUpInside)
+
+        // MARK: Crash Log Section
+
+        let crashTitleLabel = UILabel()
+        crashTitleLabel.text = "Crash Log"
+        crashTitleLabel.textColor = .white
+        crashTitleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
+        view.addSubview(crashTitleLabel)
+        crashTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        crashLogTextView.isEditable = false
+        crashLogTextView.isScrollEnabled = true
+        crashLogTextView.backgroundColor = UIColor(white: 0.1, alpha: 1)
+        crashLogTextView.textColor = .green
+        crashLogTextView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        crashLogTextView.layer.cornerRadius = 6
+        view.addSubview(crashLogTextView)
+        crashLogTextView.translatesAutoresizingMaskIntoConstraints = false
+
+        var clearConfig = UIButton.Configuration.filled()
+        clearConfig.baseBackgroundColor = .darkGray
+        clearConfig.title = "Clear Log"
+        clearCrashButton.configuration = clearConfig
+        clearCrashButton.configurationUpdateHandler = { btn in
+            btn.configuration?.baseBackgroundColor = btn.isHighlighted ? .lightGray : .darkGray
+        }
+        clearCrashButton.layer.cornerRadius = 8
+        clearCrashButton.addTarget(self, action: #selector(clearCrashLog), for: .touchUpInside)
+        view.addSubview(clearCrashButton)
+        clearCrashButton.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            crashTitleLabel.topAnchor.constraint(equalTo: channelButtonStack.bottomAnchor, constant: 20),
+            crashTitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+
+            clearCrashButton.centerYAnchor.constraint(equalTo: crashTitleLabel.centerYAnchor),
+            clearCrashButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            clearCrashButton.widthAnchor.constraint(equalToConstant: 90),
+
+            crashLogTextView.topAnchor.constraint(equalTo: crashTitleLabel.bottomAnchor, constant: 8),
+            crashLogTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            crashLogTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            crashLogTextView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+        ])
     }
     
     private func updateTimeLabel() {
@@ -204,5 +255,21 @@ class AdminViewController: UIViewController {
     @objc private func prevChannel() {
         let state = PlaybackManager.shared.getState()
         PlaybackManager.shared.setChannelIndex(index:state.channelIndex - 1)
+    }
+
+    private func refreshCrashLog() {
+        if let log = CrashReporter.shared.readLog() {
+            crashLogTextView.text = log
+            // Scroll to the bottom so the most recent crash is visible
+            let bottom = NSRange(location: max(0, log.utf16.count - 1), length: 1)
+            crashLogTextView.scrollRangeToVisible(bottom)
+        } else {
+            crashLogTextView.text = "(no crashes recorded)"
+        }
+    }
+
+    @objc private func clearCrashLog() {
+        CrashReporter.shared.clearLog()
+        refreshCrashLog()
     }
 }
