@@ -61,6 +61,15 @@ private func availableCameras() -> [CameraOption] {
     return opts
 }
 
+// MARK: - Logging
+
+private let kDevice = ProcessInfo.processInfo.hostName.replacingOccurrences(of: ".local", with: "")
+
+private func lkLog(_ msg: String, file: String = #file, line: Int = #line) {
+    let fname = (file as NSString).lastPathComponent
+    print("[LiveKit:\(kDevice)] \(msg)  (\(fname):\(line))")
+}
+
 // MARK: - CameraViewController
 
 class CameraViewController: UIViewController {
@@ -242,7 +251,11 @@ class CameraViewController: UIViewController {
     /// Forces the view to load so UI is ready before any delegate callbacks arrive.
     func autoConnect() {
         _ = view // trigger viewDidLoad if not yet loaded
-        guard room.connectionState == .disconnected else { return }
+        guard room.connectionState == .disconnected else {
+            lkLog("autoConnect skipped — already \(room.connectionState)")
+            return
+        }
+        lkLog("autoConnect starting")
         Task { await connect() }
     }
 
@@ -277,11 +290,14 @@ class CameraViewController: UIViewController {
         let roomName = roomField.text?.trimmingCharacters(in: .whitespaces).isEmpty == false
             ? roomField.text!.trimmingCharacters(in: .whitespaces)
             : kDefaultRoom
+        let identity = kDevice
+
+        lkLog("connect() → room=\(roomName) identity=\(identity)")
 
         let token = livekitToken(
             apiKey: kLiveKitAPIKey,
             secret: kLiveKitAPISecret,
-            identity: ProcessInfo.processInfo.hostName.replacingOccurrences(of: ".local", with: ""),
+            identity: identity,
             room: roomName
         )
 
@@ -295,21 +311,28 @@ class CameraViewController: UIViewController {
         appendStats("⟳ Connecting to room \"\(roomName)\"…")
 
         do {
+            lkLog("room.connect starting")
             try await room.connect(url: kLiveKitURL, token: token)
+            lkLog("room.connect succeeded — sid=\(room.sid?.description ?? "?")")
             appendStats("✓ Connected")
 
             // Camera
+            lkLog("requesting camera permission")
             let videoGranted = await AVCaptureDevice.requestAccess(for: .video)
+            lkLog("camera permission: \(videoGranted ? "granted" : "denied")")
             if videoGranted {
                 cameraOptions = availableCameras()
                 currentCameraIndex = 0
+                lkLog("cameras available: \(cameraOptions.map(\.name))")
                 let firstDevice = cameraOptions.first?.device
                 let track = LocalVideoTrack.createCameraTrack(
                     name: "camera",
                     options: CameraCaptureOptions(device: firstDevice, dimensions: .h720_169, fps: 30)
                 )
                 self.cameraTrack = track
+                lkLog("publishing video track")
                 try await room.localParticipant.publish(videoTrack: track)
+                lkLog("video track published")
                 await MainActor.run {
                     track.add(videoRenderer: videoView)
                     placeholderLabel.isHidden = true
@@ -321,11 +344,15 @@ class CameraViewController: UIViewController {
             }
 
             // Microphone
+            lkLog("requesting mic permission")
             let audioGranted = await AVCaptureDevice.requestAccess(for: .audio)
+            lkLog("mic permission: \(audioGranted ? "granted" : "denied")")
             if audioGranted {
                 let aTrack = LocalAudioTrack.createTrack(name: "mic")
                 self.audioTrack = aTrack
+                lkLog("publishing audio track")
                 try await room.localParticipant.publish(audioTrack: aTrack)
+                lkLog("audio track published")
                 await MainActor.run { muteButton.isHidden = false }
                 appendStats("✓ Mic published")
             } else {
@@ -335,6 +362,7 @@ class CameraViewController: UIViewController {
             startStatsTimer()
 
         } catch {
+            lkLog("connect() error: \(error)")
             appendStats("✗ \(error.localizedDescription)")
             await MainActor.run {
                 connectButton.setTitle("Connect", for: .normal)
@@ -483,6 +511,7 @@ class CameraViewController: UIViewController {
 extension CameraViewController: RoomDelegate {
 
     func room(_ room: Room, didUpdateConnectionState connectionState: ConnectionState, from oldValue: ConnectionState) {
+        lkLog("connectionState \(oldValue) → \(connectionState)")
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             switch connectionState {
@@ -540,10 +569,12 @@ extension CameraViewController: RoomDelegate {
     }
 
     func room(_ room: Room, didFailToConnectWithError error: LiveKitError?) {
+        lkLog("didFailToConnect: \(error?.localizedDescription ?? "unknown")")
         appendStats("✗ Failed: \(error?.localizedDescription ?? "unknown error")")
     }
 
     func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
+        lkLog("participantDidConnect: \(participant.identity?.description ?? "?")")
         // Small delay so the new participant's data channel is ready to receive
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.sendCameraList()
