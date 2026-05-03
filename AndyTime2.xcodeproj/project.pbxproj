@@ -19,6 +19,8 @@
 		DB02A1212FA78C2B00BE11BF /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */; };
 		CA1EC71D000000000000CCA3 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA1EC71D000000000000CCA2 /* LiveKit */; };
 		CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1EC71D000000000000CCA4 /* CameraViewController.swift */; };
+		CA000000000002000000BB01 /* LiveKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000002000000BB00 /* LiveKitManager.swift */; };
+		CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000003000000CC00 /* RemoteCameraViewController.swift */; };
 
 /* End PBXBuildFile section */
 
@@ -47,6 +49,8 @@
 		B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AndyTimeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8F00002AAAA000100000002 /* InfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoViewController.swift; sourceTree = "<group>"; };
 		DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
+		CA000000000002000000BB00 /* LiveKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveKitManager.swift; sourceTree = "<group>"; };
+		CA000000000003000000CC00 /* RemoteCameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCameraViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -99,6 +103,8 @@
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
 				CA1EC71D000000000000CCA4 /* CameraViewController.swift */,
+				CA000000000002000000BB00 /* LiveKitManager.swift */,
+				CA000000000003000000CC00 /* RemoteCameraViewController.swift */,
 				B8F00002AAAA000100000002 /* InfoViewController.swift */,
 				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
@@ -229,6 +235,8 @@
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
 				B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */,
 				CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */,
+				CA000000000002000000BB01 /* LiveKitManager.swift in Sources */,
+				CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
