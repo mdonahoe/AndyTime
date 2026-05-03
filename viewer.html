@@ -186,9 +186,6 @@
 <!-- LiveKit JS client -->
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 
-<!-- jose for client-side JWT signing (HS256) -->
-<script src="https://cdn.jsdelivr.net/npm/jose@5/dist/umd/index.js"></script>
-
 <script>
 (function () {
   'use strict';
@@ -205,24 +202,30 @@
   let room = null;
   let statsInterval = null;
 
-  // ── JWT token generation (subscriber) ──
+  // ── JWT token generation via Web Crypto (no dependencies) ──
   async function makeSubscriberToken(roomName) {
-    const secret = new TextEncoder().encode(LK_SECRET);
+    const enc = new TextEncoder();
+
+    function b64url(buf) {
+      return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
     const now = Math.floor(Date.now() / 1000);
-    return await jose.SignJWT({
-      iss: LK_KEY,
-      sub: 'html-viewer',
-      iat: now,
-      exp: now + 21600,
-      video: {
-        roomJoin:     true,
-        room:         roomName,
-        canPublish:   false,
-        canSubscribe: true,
-      },
-    })
-    .setProtectedHeader({ alg: 'HS256' })
-    .sign(secret);
+    const header  = b64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
+    const payload = b64url(enc.encode(JSON.stringify({
+      iss: LK_KEY, sub: 'html-viewer', iat: now, exp: now + 21600,
+      video: { roomJoin: true, room: roomName, canPublish: false, canSubscribe: true },
+    })));
+    const message = `${header}.${payload}`;
+
+    const key = await crypto.subtle.importKey(
+      'raw', enc.encode(LK_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+    return `${message}.${b64url(sig)}`;
   }
 
   // ── Logging ──

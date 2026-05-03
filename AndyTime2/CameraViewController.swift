@@ -196,10 +196,10 @@ class CameraViewController: UIViewController {
             view.endEditing(true)
         }
 
-        appendStats("⟳ Connecting to room "\(roomName)"…")
+        appendStats("⟳ Connecting to room \"\(roomName)\"…")
 
         do {
-            try await room.connect(kLiveKitURL, token)
+            try await room.connect(url: kLiveKitURL, token: token)
             appendStats("✓ Connected")
 
             let granted = await AVCaptureDevice.requestAccess(for: .video)
@@ -211,7 +211,7 @@ class CameraViewController: UIViewController {
             let track = LocalVideoTrack.createCameraTrack(
                 name: "camera",
                 options: CameraCaptureOptions(
-                    device: CameraCapturerUtils.device(position: .front),
+                    position: .front,
                     dimensions: .h720_169,
                     fps: 30
                 )
@@ -261,10 +261,10 @@ class CameraViewController: UIViewController {
     private func refreshStats() {
         let state: String
         switch room.connectionState {
-        case .connected:   state = "connected ✓"
-        case .connecting:  state = "connecting…"
-        case .reconnecting:state = "reconnecting…"
-        case .disconnected:state = "disconnected"
+        case .connected:    state = "connected ✓"
+        case .connecting:   state = "connecting…"
+        case .reconnecting: state = "reconnecting…"
+        default:            state = "disconnected"
         }
 
         let quality: String
@@ -278,7 +278,7 @@ class CameraViewController: UIViewController {
 
         let roomName     = room.name ?? "—"
         let roomSid      = room.sid?.description ?? "—"
-        let localSid     = room.localParticipant.sid.description
+        let localSid     = room.localParticipant.sid?.description ?? "—"
         let participants = room.remoteParticipants.count + 1
         let cameraState  = cameraTrack.map { $0.isMuted ? "muted" : "live ▶" } ?? "none"
 
@@ -312,7 +312,7 @@ class CameraViewController: UIViewController {
 // MARK: - RoomDelegate
 
 extension CameraViewController: RoomDelegate {
-    func room(_ room: Room, didUpdate connectionState: ConnectionState, oldValue: ConnectionState) {
+    func room(_ room: Room, didUpdateConnectionState connectionState: ConnectionState, from oldValue: ConnectionState) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             switch connectionState {
@@ -320,14 +320,6 @@ extension CameraViewController: RoomDelegate {
                 connectButton.setTitle("Disconnect", for: .normal)
                 connectButton.backgroundColor = .systemRed
                 connectButton.isEnabled = true
-            case .disconnected:
-                connectButton.setTitle("Connect", for: .normal)
-                connectButton.backgroundColor = .systemBlue
-                connectButton.isEnabled = true
-                placeholderLabel.isHidden = false
-                stopStatsTimer()
-                statsTextView.text = "— not connected —"
-                cameraTrack = nil
             case .connecting:
                 connectButton.setTitle("Connecting…", for: .normal)
                 connectButton.backgroundColor = .systemOrange
@@ -336,16 +328,24 @@ extension CameraViewController: RoomDelegate {
                 connectButton.setTitle("Reconnecting…", for: .normal)
                 connectButton.backgroundColor = .systemOrange
                 appendStats("⟳ Reconnecting…")
+            default: // .disconnected
+                connectButton.setTitle("Connect", for: .normal)
+                connectButton.backgroundColor = .systemBlue
+                connectButton.isEnabled = true
+                placeholderLabel.isHidden = false
+                stopStatsTimer()
+                statsTextView.text = "— not connected —"
+                cameraTrack = nil
             }
         }
     }
 
     func room(_ room: Room, participant: LocalParticipant, didPublishTrack publication: LocalTrackPublication) {
-        appendStats("✓ Track published: \(publication.track?.kind.rawValue ?? "?")")
+        appendStats("✓ Track published: \(publication.source)")
     }
 
-    func room(_ room: Room, didFailToConnect error: Error) {
-        appendStats("✗ Failed: \(error.localizedDescription)")
+    func room(_ room: Room, didFailToConnectWithError error: LiveKitError?) {
+        appendStats("✗ Failed: \(error?.localizedDescription ?? "unknown error")")
     }
 }
 
