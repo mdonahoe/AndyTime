@@ -53,29 +53,81 @@
       overflow: hidden; background: #000; position: relative;
     }
 
-    #video-container {
-      flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    #video-tiles {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 3px;
+      overflow: hidden;
+      background: #0a0a0a;
     }
-    #video-container video {
-      max-width: 100%; max-height: 100%; object-fit: contain; background: #000;
-    }
-    .no-video { color: #444; font-size: 14px; text-align: center; padding: 40px; }
 
-    /* Local camera PiP */
+    .no-streams {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #444;
+      font-size: 14px;
+    }
+
+    /* ── Per-device tile ── */
+    .video-tile {
+      flex: 1;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .video-tile:hover .tile-overlay { opacity: 1; }
+    .video-tile video {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .tile-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 24px 10px 8px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      opacity: 0.85;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    .tile-device {
+      display: block;
+      font-size: 13px; font-weight: 600; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tile-cam {
+      display: block;
+      font-size: 11px; color: rgba(255,255,255,0.6);
+      margin-top: 2px;
+    }
+    .tile-hint {
+      position: absolute;
+      top: 8px; right: 10px;
+      font-size: 10px; color: rgba(255,255,255,0.35);
+      pointer-events: none;
+    }
+
+    /* ── Local camera PiP ── */
     #local-pip {
       position: absolute;
       bottom: 16px; right: 16px;
-      width: 180px; height: 135px;
+      width: 160px; height: 120px;
       background: #111;
       border-radius: 8px;
       overflow: hidden;
       border: 2px solid #333;
       display: none;
+      z-index: 10;
     }
     #local-pip video {
       width: 100%; height: 100%;
       object-fit: cover;
-      transform: scaleX(-1); /* mirror local preview */
+      transform: scaleX(-1);
     }
     #pip-label {
       position: absolute;
@@ -117,12 +169,6 @@
     #btn-camera.active { background: #ef4444; }
     #btn-mic        { background: #059669; color: #fff; display: none; }
     #btn-mic.muted  { background: #f59e0b; }
-
-    .cam-ctrl { padding: 14px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; display: none; }
-    .cam-ctrl h2 { font-size: 11px; font-weight: 600; color: #666; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
-    #cam-name { font-size: 13px; color: #e0e0e0; margin-bottom: 8px; text-align: center; font-weight: 500; }
-    #btn-prev-cam, #btn-next-cam { background: #1e3a5f; color: #60a5fa; font-size: 18px; }
-    #btn-prev-cam:not(:disabled):hover, #btn-next-cam:not(:disabled):hover { background: #1e4a7f; }
 
     .stats-section { padding: 12px 14px 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
     .stats-section h2 {
@@ -175,10 +221,10 @@
 
 <main>
   <div class="video-panel">
-    <div id="video-container">
-      <p class="no-video" id="no-video-msg">No stream — connect in the sidebar</p>
+    <div id="video-tiles">
+      <div class="no-streams" id="no-streams-msg">No streams — connect in the sidebar</div>
     </div>
-    <!-- Local camera PiP overlay -->
+    <!-- HTML viewer's own camera PiP -->
     <div id="local-pip">
       <video id="local-video" autoplay playsinline muted></video>
       <span id="pip-label">You</span>
@@ -199,15 +245,6 @@
       <div class="btn-row" style="margin-top:8px">
         <button id="btn-camera">Enable Camera</button>
         <button id="btn-mic">Mute Mic</button>
-      </div>
-    </div>
-
-    <div class="cam-ctrl" id="cam-ctrl">
-      <h2>iOS Camera</h2>
-      <div id="cam-name">—</div>
-      <div class="btn-row">
-        <button id="btn-prev-cam">◀</button>
-        <button id="btn-next-cam">▶</button>
       </div>
     </div>
 
@@ -246,14 +283,15 @@
   // ──────────────────────────────────────────────────────────────────────────
 
   const LC = window.LivekitClient;
-  const { Room, RoomEvent, Track, ConnectionState, createLocalVideoTrack } = LC;
+  const { Room, RoomEvent, Track, ConnectionState } = LC;
 
   let room = null;
   let statsInterval = null;
   let localCameraTrack = null;
   let micEnabled = false;
-  let iosCameras = [];
-  let iosCameraIndex = 0;
+
+  // identity → { cameras: string[], index: number }
+  const participantState = {};
 
   // ── JWT via Web Crypto ──
   async function makeToken(roomName) {
@@ -266,7 +304,7 @@
     const header  = b64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
     const payload = b64url(enc.encode(JSON.stringify({
       iss: LK_KEY, sub: 'html-viewer', iat: now, exp: now + 21600,
-      video: { roomJoin: true, room: roomName, canPublish: true, canSubscribe: true },
+      video: { roomJoin: true, room: roomName, canPublish: true, canSubscribe: true, canPublishData: true },
     })));
     const message = `${header}.${payload}`;
     const key = await crypto.subtle.importKey(
@@ -310,42 +348,93 @@
     document.getElementById('s-latency').textContent = lat != null ? lat + ' ms' : '—';
   }
 
-  // ── Remote video ──
-  function attachRemoteVideo(track) {
-    const container = document.getElementById('video-container');
-    document.getElementById('no-video-msg').style.display = 'none';
-    container.querySelector('video')?.remove();
-    const el = track.attach();
-    el.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
-    container.appendChild(el);
-    log(`▶ Remote video attached (${track.sid})`, 'track');
+  // ── Video tiles ──
+  function getOrCreateTile(identity) {
+    const id = 'tile-' + identity.replace(/[^a-zA-Z0-9]/g, '_');
+    let tile = document.getElementById(id);
+    if (!tile) {
+      document.getElementById('no-streams-msg').style.display = 'none';
+      tile = document.createElement('div');
+      tile.className = 'video-tile';
+      tile.id = id;
+      tile.dataset.identity = identity;
+      tile.innerHTML = `
+        <video autoplay playsinline></video>
+        <div class="tile-overlay">
+          <span class="tile-device">${esc(identity)}</span>
+          <span class="tile-cam">—</span>
+        </div>
+        <span class="tile-hint">click to switch camera</span>
+      `;
+      tile.addEventListener('click', () => onTileClick(identity));
+      document.getElementById('video-tiles').appendChild(tile);
+    }
+    return tile;
   }
 
-  function detachRemoteVideo() {
-    document.getElementById('video-container').querySelectorAll('video').forEach(el => el.remove());
-    document.getElementById('no-video-msg').style.display = '';
+  function removeTile(identity) {
+    const id = 'tile-' + identity.replace(/[^a-zA-Z0-9]/g, '_');
+    document.getElementById(id)?.remove();
+    delete participantState[identity];
+    if (document.querySelectorAll('.video-tile').length === 0) {
+      document.getElementById('no-streams-msg').style.display = '';
+    }
   }
 
-  // ── Local camera ──
+  function removeAllTiles() {
+    document.querySelectorAll('.video-tile').forEach(t => t.remove());
+    Object.keys(participantState).forEach(k => delete participantState[k]);
+    document.getElementById('no-streams-msg').style.display = '';
+  }
+
+  function updateTileCamLabel(identity) {
+    const id = 'tile-' + identity.replace(/[^a-zA-Z0-9]/g, '_');
+    const tile = document.getElementById(id);
+    if (!tile) return;
+    const state = participantState[identity];
+    tile.querySelector('.tile-cam').textContent = state?.cameras[state.index] ?? '—';
+    // Only show hint if there are multiple cameras to cycle
+    const hint = tile.querySelector('.tile-hint');
+    if (hint) hint.style.display = state?.cameras.length > 1 ? '' : 'none';
+  }
+
+  function onTileClick(identity) {
+    const state = participantState[identity];
+    if (!state || state.cameras.length <= 1) return;
+    const nextIndex = (state.index + 1) % state.cameras.length;
+    requestCameraSwitch(identity, nextIndex);
+  }
+
+  async function requestCameraSwitch(identity, index) {
+    if (!room) return;
+    const data = new TextEncoder().encode(JSON.stringify({ type: 'switchCamera', index }));
+    try {
+      await room.localParticipant.publishData(data, {
+        topic: 'camera-control',
+        reliable: true,
+        destinationIdentities: [identity],
+      });
+      log(`📷 → ${identity}: switch to camera ${index}`, 'info');
+    } catch (e) {
+      log(`✗ Camera switch error: ${e.message}`, 'error');
+    }
+  }
+
+  // ── Local camera (HTML viewer) ──
   async function enableCamera() {
     if (localCameraTrack) return;
-
     if (!window.isSecureContext) {
-      log('✗ Camera requires a secure context. Open this page via http://localhost:… not a LAN IP.', 'error');
+      log('✗ Camera requires a secure context (http://localhost:…)', 'error');
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
       log('✗ getUserMedia not available in this browser.', 'error');
       return;
     }
-
     log('📷 Requesting camera + mic permission…', 'info');
     try {
-      // Explicitly request permission first so the browser prompt always appears
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }, audio: true });
-      stream.getTracks().forEach(t => t.stop()); // release immediately; LiveKit will reopen it
-
-      // Publish camera and mic via LiveKit
+      stream.getTracks().forEach(t => t.stop());
       await room.localParticipant.setCameraEnabled(true);
       await room.localParticipant.setMicrophoneEnabled(true);
       micEnabled = true;
@@ -353,16 +442,12 @@
       document.getElementById('btn-mic').textContent = 'Mute Mic';
       document.getElementById('btn-mic').classList.remove('muted');
       log('🎤 Microphone published', 'success');
-
-      // Grab the published track for the PiP preview
       const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
       if (pub?.track) {
         localCameraTrack = pub.track;
-        const localVideo = document.getElementById('local-video');
-        localCameraTrack.attach(localVideo);
+        localCameraTrack.attach(document.getElementById('local-video'));
         document.getElementById('local-pip').style.display = 'block';
       }
-
       log('✓ Local camera published', 'success');
       document.getElementById('btn-camera').textContent = 'Disable Camera';
       document.getElementById('btn-camera').classList.add('active');
@@ -424,7 +509,6 @@
         document.getElementById('btn-disconnect').style.display = 'none';
         document.getElementById('btn-camera').style.display     = 'none';
         document.getElementById('btn-mic').style.display        = 'none';
-        // Clean up local camera/mic state without unpublishing (room is gone)
         if (localCameraTrack) {
           localCameraTrack.detach();
           localCameraTrack = null;
@@ -435,21 +519,27 @@
           document.getElementById('btn-mic').textContent = 'Mute Mic';
           document.getElementById('btn-mic').classList.remove('muted');
         }
-        iosCameras = [];
-        iosCameraIndex = 0;
-        document.getElementById('cam-ctrl').style.display = 'none';
+        removeAllTiles();
         clearInterval(statsInterval);
-        detachRemoteVideo();
         updateStats();
       })
       .on(RoomEvent.Reconnecting,  () => { log('⟳ Reconnecting…', 'warn');  setStatus('connecting', 'Reconnecting…'); })
       .on(RoomEvent.Reconnected,   () => { log('✓ Reconnected', 'success'); setStatus('connected', `Connected · ${room.name}`); })
       .on(RoomEvent.ParticipantConnected,    p => { log(`👤 Joined: ${p.identity}`, 'info');  updateStats(); })
-      .on(RoomEvent.ParticipantDisconnected, p => { log(`👤 Left: ${p.identity}`, 'warn');    updateStats(); })
+      .on(RoomEvent.ParticipantDisconnected, p => {
+        log(`👤 Left: ${p.identity}`, 'warn');
+        removeTile(p.identity);
+        updateStats();
+      })
       .on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
         log(`📡 Subscribed: ${track.kind} from ${participant.identity}`, 'track');
         if (track.kind === Track.Kind.Video) {
-          attachRemoteVideo(track);
+          const tile = getOrCreateTile(participant.identity);
+          track.attach(tile.querySelector('video'));
+          if (!participantState[participant.identity]) {
+            participantState[participant.identity] = { cameras: [], index: 0 };
+          }
+          updateTileCamLabel(participant.identity);
         } else if (track.kind === Track.Kind.Audio) {
           document.body.appendChild(track.attach());
           log('🔊 Audio attached', 'track');
@@ -459,7 +549,7 @@
       .on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
         log(`📡 Unsubscribed: ${track.kind} from ${participant.identity}`, 'warn');
         track.detach();
-        if (track.kind === Track.Kind.Video) detachRemoteVideo();
+        if (track.kind === Track.Kind.Video) removeTile(participant.identity);
         updateStats();
       })
       .on(RoomEvent.TrackMuted,   (pub, p) => log(`🔇 Muted: ${pub.kind} (${p.identity})`, 'warn'))
@@ -468,38 +558,19 @@
       .on(RoomEvent.SignalConnected, () => log('🔗 Signal connected', 'info'))
       .on(RoomEvent.MediaDevicesError, err => log(`⚠️ Media error: ${err.message}`, 'error'))
       .on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
-        if (topic !== 'camera-control') return;
+        if (topic !== 'camera-control' || !participant) return;
+        const identity = participant.identity;
         try {
           const msg = JSON.parse(new TextDecoder().decode(payload));
           if (msg.type === 'cameraList') {
-            iosCameras = msg.cameras || [];
-            iosCameraIndex = msg.current ?? 0;
-            updateCameraCtrl();
-            log(`📷 iOS cameras: [${iosCameras.join(', ')}] — current: ${iosCameras[iosCameraIndex]}`, 'info');
+            if (!participantState[identity]) participantState[identity] = { cameras: [], index: 0 };
+            participantState[identity].cameras = msg.cameras || [];
+            participantState[identity].index   = msg.current ?? 0;
+            updateTileCamLabel(identity);
+            log(`📷 ${identity}: [${msg.cameras.join(', ')}]`, 'info');
           }
         } catch (e) { /* ignore malformed */ }
       });
-  }
-
-  // ── iOS camera control ──
-  function updateCameraCtrl() {
-    const section = document.getElementById('cam-ctrl');
-    if (iosCameras.length === 0) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
-    document.getElementById('cam-name').textContent = iosCameras[iosCameraIndex] ?? '—';
-    document.getElementById('btn-prev-cam').disabled = iosCameras.length <= 1;
-    document.getElementById('btn-next-cam').disabled = iosCameras.length <= 1;
-  }
-
-  async function requestCameraSwitch(index) {
-    if (!room || index < 0 || index >= iosCameras.length) return;
-    const data = new TextEncoder().encode(JSON.stringify({ type: 'switchCamera', index }));
-    try {
-      await room.localParticipant.publishData(data, { topic: 'camera-control', reliable: true });
-      log(`📷 Switching to: ${iosCameras[index]}`, 'info');
-    } catch (e) {
-      log(`✗ Camera switch error: ${e.message}`, 'error');
-    }
   }
 
   // ── Connect / disconnect ──
@@ -508,7 +579,6 @@
     document.getElementById('btn-connect').disabled = true;
     setStatus('connecting', 'Connecting…');
     log(`⟳ Generating token for room "${roomName}"…`, 'info');
-
     let token;
     try {
       token = await makeToken(roomName);
@@ -518,7 +588,6 @@
       document.getElementById('btn-connect').disabled = false;
       return;
     }
-
     log(`⟳ Connecting to ${LK_URL}…`, 'info');
     createRoom();
     try {
@@ -543,14 +612,6 @@
   document.getElementById('btn-disconnect').addEventListener('click', disconnect);
   document.getElementById('btn-camera').addEventListener('click', toggleCamera);
   document.getElementById('btn-mic').addEventListener('click', toggleMic);
-  document.getElementById('btn-prev-cam').addEventListener('click', () => {
-    const i = (iosCameraIndex - 1 + iosCameras.length) % iosCameras.length;
-    requestCameraSwitch(i);
-  });
-  document.getElementById('btn-next-cam').addEventListener('click', () => {
-    const i = (iosCameraIndex + 1) % iosCameras.length;
-    requestCameraSwitch(i);
-  });
   document.getElementById('btn-clear-log').addEventListener('click', () => { document.getElementById('log').innerHTML = ''; });
   document.getElementById('room').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
 
