@@ -156,11 +156,14 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         
         viewControllers.append(contentsOf: self.extraViews)
         
+        // TODO(matt): add a CameraViewController here, just before the redViewController.
+        
         // Add red view last
         let redViewController = UIViewController()
         redViewController.view.backgroundColor = .red
         redViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
         viewControllers.append(redViewController)
+        
 
         let adminViewController = AdminViewController()
         adminViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)

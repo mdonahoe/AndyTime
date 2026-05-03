@@ -16,6 +16,7 @@
 		B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E02D11BE7600C83F1D /* AdminViewController.swift */; };
 		B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E22D11C5A500C83F1D /* PlaybackManager.swift */; };
 		B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F00002AAAA000100000002 /* InfoViewController.swift */; };
+		DB02A1212FA78C2B00BE11BF /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,6 +42,7 @@
 		B87008E22D11C5A500C83F1D /* PlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackManager.swift; sourceTree = "<group>"; };
 		B87008EA2D1313FE00C83F1D /* AndyTimeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AndyTimeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B8F00002AAAA000100000002 /* InfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoViewController.swift; sourceTree = "<group>"; };
+		DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -86,6 +88,7 @@
 		B812B1962A5112E5000126B1 /* AndyTime2 */ = {
 			isa = PBXGroup;
 			children = (
+				DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */,
 				B8271FD12D15B5A500BD6F8A /* PhotoViewController.swift */,
 				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
@@ -207,6 +210,7 @@
 				B87008DF2D0B536100C83F1D /* AndyViewController.swift in Sources */,
 				B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */,
 				B812B1AE2A511D99000126B1 /* StartViewController.swift in Sources */,
+				DB02A1212FA78C2B00BE11BF /* CrashReporter.swift in Sources */,
 				B812B1982A5112E5000126B1 /* AppDelegate.swift in Sources */,
 				B8271FD22D15B5A500BD6F8A /* PhotoViewController.swift in Sources */,
 				B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */,
@@ -358,6 +362,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AndyTime2/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AndyTime3;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "App displays your videos";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -386,6 +391,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AndyTime2/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AndyTime3;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "App displays your videos";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
