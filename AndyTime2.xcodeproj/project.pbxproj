@@ -17,6 +17,9 @@
 		B87008E32D11C5A500C83F1D /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B87008E22D11C5A500C83F1D /* PlaybackManager.swift */; };
 		B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F00002AAAA000100000002 /* InfoViewController.swift */; };
 		DB02A1212FA78C2B00BE11BF /* CrashReporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */; };
+		CA1EC71D000000000000CCA3 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = CA1EC71D000000000000CCA2 /* LiveKit */; };
+		CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1EC71D000000000000CCA4 /* CameraViewController.swift */; };
+
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +34,7 @@
 
 /* Begin PBXFileReference section */
 		B812B1942A5112E5000126B1 /* AndyTime2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AndyTime2.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CA1EC71D000000000000CCA4 /* CameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewController.swift; sourceTree = "<group>"; };
 		B812B1972A5112E5000126B1 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B812B1A02A5112E5000126B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B812B1A52A5112E5000126B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -54,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA1EC71D000000000000CCA3 /* LiveKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,6 +98,7 @@
 				B87008E02D11BE7600C83F1D /* AdminViewController.swift */,
 				B87008DE2D0B536100C83F1D /* AndyViewController.swift */,
 				B812B1972A5112E5000126B1 /* AppDelegate.swift */,
+				CA1EC71D000000000000CCA4 /* CameraViewController.swift */,
 				B8F00002AAAA000100000002 /* InfoViewController.swift */,
 				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
@@ -119,6 +125,9 @@
 			dependencies = (
 			);
 			name = AndyTime2;
+			packageProductDependencies = (
+				CA1EC71D000000000000CCA2 /* LiveKit */,
+			);
 			productName = AndyTime2;
 			productReference = B812B1942A5112E5000126B1 /* AndyTime2.app */;
 			productType = "com.apple.product-type.application";
@@ -175,6 +184,9 @@
 			);
 			mainGroup = B812B18B2A5112E5000126B1;
 			productRefGroup = B812B1952A5112E5000126B1 /* Products */;
+			packageReferences = (
+				CA1EC71D000000000000CCA1 /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -216,6 +228,7 @@
 				B87008E12D11BE7600C83F1D /* AdminViewController.swift in Sources */,
 				B812B1AC2A5119E7000126B1 /* VideoViewController.swift in Sources */,
 				B8F00001AAAA000100000001 /* InfoViewController.swift in Sources */,
+				CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -487,6 +500,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CA1EC71D000000000000CCA1 /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/client-sdk-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CA1EC71D000000000000CCA2 /* LiveKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CA1EC71D000000000000CCA1 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B812B18C2A5112E5000126B1 /* Project object */;
 }

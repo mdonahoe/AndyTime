@@ -153,7 +153,10 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             let videoViewController = VideoViewController(name: name, channelIndex: channelIndex)
             viewControllers.append(videoViewController)
         }
-        
+
+        // Camera / LiveKit streaming page
+        viewControllers.append(CameraViewController())
+
         viewControllers.append(contentsOf: self.extraViews)
         
         // TODO(matt): add a CameraViewController here, just before the redViewController.

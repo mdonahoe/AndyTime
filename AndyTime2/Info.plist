@@ -4,5 +4,15 @@
 <dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to stream the front camera over LiveKit WebRTC</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used to capture audio for LiveKit WebRTC streaming</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Used to connect to a local LiveKit server on the same network</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_livekit._tcp</string>
+	</array>
 </dict>
 </plist>

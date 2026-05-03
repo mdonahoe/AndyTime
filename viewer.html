@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AndyTime Camera Viewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background: #111;
+      border-bottom: 1px solid #222;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    header h1 { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.05em; }
+
+    .status-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #444; transition: background 0.3s; flex-shrink: 0;
+    }
+    .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
+    .status-dot.connected  { background: #22c55e; }
+    .status-dot.error      { background: #ef4444; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .status-text { font-size: 12px; color: #888; }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      overflow: hidden;
+    }
+
+    .video-panel {
+      display: flex; flex-direction: column;
+      overflow: hidden; background: #000; position: relative;
+    }
+
+    #video-container {
+      flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    #video-container video {
+      max-width: 100%; max-height: 100%; object-fit: contain; background: #000;
+    }
+    .no-video { color: #444; font-size: 14px; text-align: center; padding: 40px; }
+
+    .sidebar {
+      display: flex; flex-direction: column;
+      border-left: 1px solid #1e1e1e; overflow: hidden;
+    }
+
+    .config-section { padding: 14px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
+    .config-section h2 {
+      font-size: 11px; font-weight: 600; color: #666;
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
+    }
+
+    .field { margin-bottom: 8px; }
+    .field label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+    .field input {
+      width: 100%; background: #111; border: 1px solid #2a2a2a; border-radius: 6px;
+      color: #e0e0e0; font-size: 12px; padding: 6px 8px; outline: none;
+      font-family: "SF Mono", Menlo, monospace;
+    }
+    .field input:focus { border-color: #3b82f6; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+    button {
+      flex: 1; padding: 8px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    button:disabled { opacity: .4; cursor: default; }
+    button:not(:disabled):hover { opacity: .85; }
+    #btn-connect    { background: #3b82f6; color: #fff; }
+    #btn-disconnect { background: #ef4444; color: #fff; display: none; }
+
+    .stats-section { padding: 12px 14px 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
+    .stats-section h2 {
+      font-size: 11px; font-weight: 600; color: #666;
+      letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+    }
+    #stats-grid {
+      display: grid; grid-template-columns: auto 1fr; gap: 3px 10px;
+      font-size: 12px; font-family: "SF Mono", Menlo, monospace;
+    }
+    .stat-key { color: #666; }
+    .stat-value { color: #e0e0e0; }
+    .stat-value.connected { color: #22c55e; }
+    .stat-value.error { color: #ef4444; }
+
+    .log-section { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .log-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0;
+    }
+    .log-header h2 {
+      font-size: 11px; font-weight: 600; color: #666;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    #btn-clear-log {
+      flex: none; padding: 3px 10px; font-size: 11px; font-weight: 500;
+      background: #1e1e1e; color: #888; border-radius: 4px;
+    }
+    #log {
+      flex: 1; overflow-y: auto; padding: 8px 14px;
+      font-family: "SF Mono", Menlo, monospace; font-size: 11px; line-height: 1.6; color: #888;
+    }
+    .log-entry { display: flex; gap: 8px; }
+    .log-time  { color: #444; flex-shrink: 0; }
+    .log-msg.info    { color: #60a5fa; }
+    .log-msg.success { color: #4ade80; }
+    .log-msg.warn    { color: #fbbf24; }
+    .log-msg.error   { color: #f87171; }
+    .log-msg.track   { color: #a78bfa; }
+    .log-msg.data    { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ANDYTIME CAMERA VIEWER</h1>
+  <div class="status-dot" id="status-dot"></div>
+  <span class="status-text" id="status-text">Disconnected</span>
+</header>
+
+<main>
+  <div class="video-panel">
+    <div id="video-container">
+      <p class="no-video" id="no-video-msg">No stream — connect in the sidebar</p>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="config-section">
+      <h2>Connection</h2>
+      <div class="field">
+        <label>Room name</label>
+        <input type="text" id="room" value="andytime" spellcheck="false" />
+      </div>
+      <div class="btn-row">
+        <button id="btn-connect">Connect</button>
+        <button id="btn-disconnect">Disconnect</button>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h2>Stats</h2>
+      <div id="stats-grid">
+        <span class="stat-key">state</span>       <span class="stat-value" id="s-state">—</span>
+        <span class="stat-key">room</span>        <span class="stat-value" id="s-room">—</span>
+        <span class="stat-key">participants</span> <span class="stat-value" id="s-parts">—</span>
+        <span class="stat-key">tracks</span>      <span class="stat-value" id="s-tracks">—</span>
+        <span class="stat-key">latency</span>     <span class="stat-value" id="s-latency">—</span>
+      </div>
+    </div>
+
+    <div class="log-section">
+      <div class="log-header">
+        <h2>Debug Log</h2>
+        <button id="btn-clear-log">Clear</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<!-- LiveKit JS client -->
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+
+<!-- jose for client-side JWT signing (HS256) -->
+<script src="https://cdn.jsdelivr.net/npm/jose@5/dist/umd/index.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Hardcoded credentials ──────────────────────────────────────────────────
+  const LK_URL    = 'wss://andytime-n3a13lj5.livekit.cloud';
+  const LK_KEY    = 'APITxc5HK2bwMX5';
+  const LK_SECRET = 'HplIUtx8sSCz2jo0rQulzY4GDoIx5QfcfjSunoNZlJk';
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const LC = window.LivekitClient;
+  const { Room, RoomEvent, Track, ConnectionState } = LC;
+
+  let room = null;
+  let statsInterval = null;
+
+  // ── JWT token generation (subscriber) ──
+  async function makeSubscriberToken(roomName) {
+    const secret = new TextEncoder().encode(LK_SECRET);
+    const now = Math.floor(Date.now() / 1000);
+    return await jose.SignJWT({
+      iss: LK_KEY,
+      sub: 'html-viewer',
+      iat: now,
+      exp: now + 21600,
+      video: {
+        roomJoin:     true,
+        room:         roomName,
+        canPublish:   false,
+        canSubscribe: true,
+      },
+    })
+    .setProtectedHeader({ alg: 'HS256' })
+    .sign(secret);
+  }
+
+  // ── Logging ──
+  function log(msg, type = 'data') {
+    const el = document.getElementById('log');
+    const now = new Date();
+    const ts = now.toTimeString().slice(0, 8) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg ${type}">${esc(msg)}</span>`;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function setStatus(cls, text) {
+    document.getElementById('status-dot').className  = 'status-dot ' + cls;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // ── Stats ──
+  function updateStats() {
+    if (!room) return;
+    const state = room.state;
+    const el = document.getElementById('s-state');
+    el.textContent = state;
+    el.className = 'stat-value ' + (state === ConnectionState.Connected ? 'connected' : state === ConnectionState.Disconnected ? 'error' : '');
+    document.getElementById('s-room').textContent = room.name || '—';
+    document.getElementById('s-parts').textContent = room.numParticipants;
+
+    let tracks = 0;
+    room.remoteParticipants.forEach(p => p.trackPublications.forEach(pub => { if (pub.isSubscribed) tracks++; }));
+    document.getElementById('s-tracks').textContent = tracks;
+
+    const lat = room.engine?.latency;
+    document.getElementById('s-latency').textContent = lat != null ? lat + ' ms' : '—';
+  }
+
+  // ── Video ──
+  function attachVideo(track) {
+    const container = document.getElementById('video-container');
+    document.getElementById('no-video-msg').style.display = 'none';
+    container.querySelector('video')?.remove();
+    const el = track.attach();
+    el.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
+    container.appendChild(el);
+    log(`▶ Video attached (${track.sid})`, 'track');
+  }
+
+  function detachAll() {
+    const container = document.getElementById('video-container');
+    container.querySelectorAll('video, audio').forEach(el => el.remove());
+    document.getElementById('no-video-msg').style.display = '';
+    log('⏹ All tracks detached', 'warn');
+  }
+
+  // ── Room ──
+  function createRoom() {
+    room = new Room({ adaptiveStream: true, dynacast: true });
+
+    room
+      .on(RoomEvent.Connected, () => {
+        log(`✓ Connected — room: ${room.name}`, 'success');
+        setStatus('connected', `Connected · ${room.name}`);
+        document.getElementById('btn-connect').style.display    = 'none';
+        document.getElementById('btn-disconnect').style.display = '';
+        document.getElementById('btn-connect').disabled = false;
+        statsInterval = setInterval(updateStats, 1000);
+        updateStats();
+      })
+      .on(RoomEvent.Disconnected, (reason) => {
+        log(`✗ Disconnected${reason ? ' (' + reason + ')' : ''}`, 'error');
+        setStatus('', 'Disconnected');
+        document.getElementById('btn-connect').style.display    = '';
+        document.getElementById('btn-disconnect').style.display = 'none';
+        clearInterval(statsInterval);
+        detachAll();
+        updateStats();
+      })
+      .on(RoomEvent.Reconnecting,  () => { log('⟳ Reconnecting…', 'warn');  setStatus('connecting', 'Reconnecting…'); })
+      .on(RoomEvent.Reconnected,   () => { log('✓ Reconnected', 'success'); setStatus('connected', `Connected · ${room.name}`); })
+      .on(RoomEvent.ParticipantConnected,    p => { log(`👤 Joined: ${p.identity}`, 'info');  updateStats(); })
+      .on(RoomEvent.ParticipantDisconnected, p => { log(`👤 Left: ${p.identity}`, 'warn');    updateStats(); })
+      .on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+        log(`📡 Track subscribed: ${track.kind} from ${participant.identity}`, 'track');
+        if (track.kind === Track.Kind.Video) {
+          attachVideo(track);
+        } else if (track.kind === Track.Kind.Audio) {
+          document.body.appendChild(track.attach());
+          log('🔊 Audio attached', 'track');
+        }
+        updateStats();
+      })
+      .on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
+        log(`📡 Track unsubscribed: ${track.kind} from ${participant.identity}`, 'warn');
+        track.detach();
+        if (track.kind === Track.Kind.Video) {
+          document.getElementById('video-container').querySelectorAll('video').forEach(el => el.remove());
+          document.getElementById('no-video-msg').style.display = '';
+        }
+        updateStats();
+      })
+      .on(RoomEvent.TrackMuted,   (pub, p) => log(`🔇 Muted: ${pub.kind} (${p.identity})`, 'warn'))
+      .on(RoomEvent.TrackUnmuted, (pub, p) => log(`🔊 Unmuted: ${pub.kind} (${p.identity})`, 'info'))
+      .on(RoomEvent.ConnectionQualityChanged, (q, p) => log(`📶 Quality: ${q} (${p.identity})`, 'data'))
+      .on(RoomEvent.SignalConnected, () => log('🔗 Signal connected', 'info'))
+      .on(RoomEvent.MediaDevicesError, err => log(`⚠️ Media error: ${err.message}`, 'error'));
+  }
+
+  // ── Connect ──
+  async function connect() {
+    const roomName = document.getElementById('room').value.trim() || 'andytime';
+
+    document.getElementById('btn-connect').disabled = true;
+    setStatus('connecting', 'Connecting…');
+    log(`⟳ Generating subscriber token for room "${roomName}"…`, 'info');
+
+    let token;
+    try {
+      token = await makeSubscriberToken(roomName);
+    } catch (err) {
+      log(`✗ Token generation failed: ${err.message}`, 'error');
+      setStatus('error', 'Error');
+      document.getElementById('btn-connect').disabled = false;
+      return;
+    }
+
+    log(`⟳ Connecting to ${LK_URL}…`, 'info');
+    createRoom();
+
+    try {
+      await room.connect(LK_URL, token);
+    } catch (err) {
+      log(`✗ Connect failed: ${err.message}`, 'error');
+      setStatus('error', 'Error');
+      document.getElementById('btn-connect').disabled = false;
+      room = null;
+    }
+  }
+
+  async function disconnect() {
+    if (!room) return;
+    log('⟳ Disconnecting…', 'info');
+    await room.disconnect();
+    room = null;
+  }
+
+  document.getElementById('btn-connect').addEventListener('click', connect);
+  document.getElementById('btn-disconnect').addEventListener('click', disconnect);
+  document.getElementById('btn-clear-log').addEventListener('click', () => {
+    document.getElementById('log').innerHTML = '';
+  });
+  document.getElementById('room').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+
+  log('LiveKit viewer ready  ·  server: ' + LK_URL, 'info');
+  log('Enter a room name and click Connect.', 'data');
+})();
+</script>
+</body>
+</html>
