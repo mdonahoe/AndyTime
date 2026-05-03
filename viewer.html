@@ -285,14 +285,24 @@
 <!-- LiveKit JS client -->
 <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 
+<!-- Local credentials (gitignored). Copy viewer-config.example.js to viewer-config.js. -->
+<script src="viewer-config.js"></script>
+
 <script>
 (function () {
   'use strict';
 
-  // ── Hardcoded credentials ──────────────────────────────────────────────────
-  const LK_URL    = 'wss://andytime-n3a13lj5.livekit.cloud';
-  const LK_KEY    = 'APITxc5HK2bwMX5';
-  const LK_SECRET = 'HplIUtx8sSCz2jo0rQulzY4GDoIx5QfcfjSunoNZlJk';
+  // ── Credentials from viewer-config.js ─────────────────────────────────────
+  if (!window.LK_CONFIG) {
+    document.body.innerHTML =
+      '<div style="color:#f87171;padding:40px;font-family:sans-serif">' +
+      'Missing <code>viewer-config.js</code> — copy <code>viewer-config.example.js</code> ' +
+      'to <code>viewer-config.js</code> and fill in your LiveKit credentials.</div>';
+    throw new Error('viewer-config.js not loaded');
+  }
+  const LK_URL    = window.LK_CONFIG.url;
+  const LK_KEY    = window.LK_CONFIG.key;
+  const LK_SECRET = window.LK_CONFIG.secret;
   // ──────────────────────────────────────────────────────────────────────────
 
   const LC = window.LivekitClient;

@@ -3,11 +3,11 @@ import AVFoundation
 import CommonCrypto
 import LiveKit
 
-// MARK: - Hardcoded LiveKit credentials (dev only)
-private let kLiveKitURL       = "wss://andytime-n3a13lj5.livekit.cloud"
-private let kLiveKitAPIKey    = "APITxc5HK2bwMX5"
-private let kLiveKitAPISecret = "HplIUtx8sSCz2jo0rQulzY4GDoIx5QfcfjSunoNZlJk"
-private let kDefaultRoom      = "andytime"
+// LiveKit credentials are loaded from the bundled `.env` file via Secrets.swift.
+private let kDefaultRoom = "andytime"
+private var kLiveKitURL:       String { Secrets.livekitURL }
+private var kLiveKitAPIKey:    String { Secrets.livekitAPIKey }
+private var kLiveKitAPISecret: String { Secrets.livekitAPISecret }
 
 // MARK: - JWT helpers
 

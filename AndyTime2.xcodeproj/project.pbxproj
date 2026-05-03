@@ -21,6 +21,7 @@
 		CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1EC71D000000000000CCA4 /* CameraViewController.swift */; };
 		CA000000000002000000BB01 /* LiveKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000002000000BB00 /* LiveKitManager.swift */; };
 		CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000003000000CC00 /* RemoteCameraViewController.swift */; };
+		CA000000000004000000DD01 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000004000000DD00 /* Secrets.swift */; };
 
 /* End PBXBuildFile section */
 
@@ -51,6 +52,7 @@
 		DB02A1202FA78C2B00BE11BF /* CrashReporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashReporter.swift; sourceTree = "<group>"; };
 		CA000000000002000000BB00 /* LiveKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveKitManager.swift; sourceTree = "<group>"; };
 		CA000000000003000000CC00 /* RemoteCameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCameraViewController.swift; sourceTree = "<group>"; };
+		CA000000000004000000DD00 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -105,6 +107,7 @@
 				CA1EC71D000000000000CCA4 /* CameraViewController.swift */,
 				CA000000000002000000BB00 /* LiveKitManager.swift */,
 				CA000000000003000000CC00 /* RemoteCameraViewController.swift */,
+				CA000000000004000000DD00 /* Secrets.swift */,
 				B8F00002AAAA000100000002 /* InfoViewController.swift */,
 				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
@@ -125,6 +128,7 @@
 				B812B1902A5112E5000126B1 /* Sources */,
 				B812B1912A5112E5000126B1 /* Frameworks */,
 				B812B1922A5112E5000126B1 /* Resources */,
+				CA000000000005000000EE00 /* Bundle .env */,
 			);
 			buildRules = (
 			);
@@ -220,6 +224,25 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		CA000000000005000000EE00 /* Bundle .env */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.env",
+			);
+			name = "Bundle .env";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/env",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nif [ ! -f \"${SRCROOT}/.env\" ]; then\n  echo \"error: .env not found at ${SRCROOT}/.env — copy .env.example to .env and fill in real values\" >&2\n  exit 1\nfi\ncp \"${SRCROOT}/.env\" \"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/env\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		B812B1902A5112E5000126B1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -237,6 +260,7 @@
 				CA1EC71D000000000000CCA5 /* CameraViewController.swift in Sources */,
 				CA000000000002000000BB01 /* LiveKitManager.swift in Sources */,
 				CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */,
+				CA000000000004000000DD01 /* Secrets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
