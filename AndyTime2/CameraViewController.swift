@@ -268,6 +268,7 @@ class CameraViewController: UIViewController {
                 muteButton.setTitle(muted ? "Unmute" : "Mute", for: .normal)
                 muteButton.backgroundColor = muted ? .systemOrange : UIColor(white: 0.2, alpha: 1)
             }
+            sendMuteState()
         }
     }
 
@@ -350,6 +351,19 @@ class CameraViewController: UIViewController {
     }
 
     // MARK: - Camera switching
+
+    private func sendMuteState() {
+        guard room.connectionState == .connected else { return }
+        let muted = audioTrack?.isMuted ?? true
+        let msg: [String: Any] = ["type": "muteState", "muted": muted]
+        guard let data = try? JSONSerialization.data(withJSONObject: msg) else { return }
+        Task {
+            try? await room.localParticipant.publish(
+                data: data,
+                options: DataPublishOptions(topic: "camera-control", reliable: true)
+            )
+        }
+    }
 
     private func sendCameraList() {
         guard room.connectionState == .connected, !cameraOptions.isEmpty else { return }
@@ -533,6 +547,7 @@ extension CameraViewController: RoomDelegate {
         // Small delay so the new participant's data channel is ready to receive
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             self?.sendCameraList()
+            self?.sendMuteState()
         }
     }
 
@@ -542,6 +557,17 @@ extension CameraViewController: RoomDelegate {
               let type = msg["type"] as? String else { return }
         if type == "switchCamera", let index = msg["index"] as? Int {
             Task { await switchCamera(to: index) }
+        } else if type == "setMute", let muted = msg["muted"] as? Bool {
+            Task {
+                if muted { try? await audioTrack?.mute() }
+                else     { try? await audioTrack?.unmute() }
+                await MainActor.run {
+                    let isMuted = audioTrack?.isMuted ?? false
+                    muteButton.setTitle(isMuted ? "Unmute" : "Mute", for: .normal)
+                    muteButton.backgroundColor = isMuted ? .systemOrange : UIColor(white: 0.2, alpha: 1)
+                }
+                sendMuteState()
+            }
         }
     }
 }

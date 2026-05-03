@@ -111,6 +111,19 @@
       font-size: 10px; color: rgba(255,255,255,0.35);
       pointer-events: none;
     }
+    .tile-mute-btn {
+      position: absolute;
+      top: 8px; left: 8px;
+      width: 30px; height: 30px;
+      flex: none; padding: 0;
+      background: rgba(0,0,0,0.45);
+      border-radius: 50%;
+      font-size: 14px; line-height: 30px; text-align: center;
+      color: #fff; cursor: pointer;
+      opacity: 0; transition: opacity 0.2s, background 0.15s;
+    }
+    .video-tile:hover .tile-mute-btn { opacity: 1; }
+    .tile-mute-btn.muted { background: rgba(239,68,68,0.75); opacity: 1; }
 
     /* ── Local camera PiP ── */
     #local-pip {
@@ -360,6 +373,7 @@
       tile.dataset.identity = identity;
       tile.innerHTML = `
         <video autoplay playsinline></video>
+        <button class="tile-mute-btn" title="Mute">🔊</button>
         <div class="tile-overlay">
           <span class="tile-device">${esc(identity)}</span>
           <span class="tile-cam">—</span>
@@ -367,6 +381,11 @@
         <span class="tile-hint">click to switch camera</span>
       `;
       tile.addEventListener('click', () => onTileClick(identity));
+      tile.querySelector('.tile-mute-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        const muted = !(participantState[identity]?.muted ?? false);
+        requestMuteChange(identity, muted);
+      });
       document.getElementById('video-tiles').appendChild(tile);
     }
     return tile;
@@ -410,13 +429,34 @@
     const data = new TextEncoder().encode(JSON.stringify({ type: 'switchCamera', index }));
     try {
       await room.localParticipant.publishData(data, {
-        topic: 'camera-control',
-        reliable: true,
-        destinationIdentities: [identity],
+        topic: 'camera-control', reliable: true, destinationIdentities: [identity],
       });
       log(`📷 → ${identity}: switch to camera ${index}`, 'info');
     } catch (e) {
       log(`✗ Camera switch error: ${e.message}`, 'error');
+    }
+  }
+
+  function updateTileMuteBtn(identity) {
+    const id = 'tile-' + identity.replace(/[^a-zA-Z0-9]/g, '_');
+    const btn = document.getElementById(id)?.querySelector('.tile-mute-btn');
+    if (!btn) return;
+    const muted = participantState[identity]?.muted ?? false;
+    btn.textContent = muted ? '🔇' : '🔊';
+    btn.title = muted ? 'Unmute' : 'Mute';
+    btn.classList.toggle('muted', muted);
+  }
+
+  async function requestMuteChange(identity, muted) {
+    if (!room) return;
+    const data = new TextEncoder().encode(JSON.stringify({ type: 'setMute', muted }));
+    try {
+      await room.localParticipant.publishData(data, {
+        topic: 'camera-control', reliable: true, destinationIdentities: [identity],
+      });
+      log(`${muted ? '🔇' : '🔊'} → ${identity}: ${muted ? 'mute' : 'unmute'}`, 'info');
+    } catch (e) {
+      log(`✗ Mute error: ${e.message}`, 'error');
     }
   }
 
@@ -563,12 +603,16 @@
         const identity = participant.identity;
         try {
           const msg = JSON.parse(new TextDecoder().decode(payload));
+          if (!participantState[identity]) participantState[identity] = { cameras: [], index: 0, muted: false };
           if (msg.type === 'cameraList') {
-            if (!participantState[identity]) participantState[identity] = { cameras: [], index: 0 };
             participantState[identity].cameras = msg.cameras || [];
             participantState[identity].index   = msg.current ?? 0;
             updateTileCamLabel(identity);
             log(`📷 ${identity}: [${msg.cameras.join(', ')}]`, 'info');
+          } else if (msg.type === 'muteState') {
+            participantState[identity].muted = msg.muted ?? false;
+            updateTileMuteBtn(identity);
+            log(`${msg.muted ? '🔇' : '🔊'} ${identity}: ${msg.muted ? 'muted' : 'unmuted'}`, 'info');
           }
         } catch (e) { /* ignore malformed */ }
       });
