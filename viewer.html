@@ -115,6 +115,8 @@
     #btn-disconnect { background: #ef4444; color: #fff; display: none; }
     #btn-camera     { background: #6366f1; color: #fff; display: none; }
     #btn-camera.active { background: #ef4444; }
+    #btn-mic        { background: #059669; color: #fff; display: none; }
+    #btn-mic.muted  { background: #f59e0b; }
 
     .stats-section { padding: 12px 14px 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
     .stats-section h2 {
@@ -190,6 +192,7 @@
       </div>
       <div class="btn-row" style="margin-top:8px">
         <button id="btn-camera">Enable Camera</button>
+        <button id="btn-mic">Mute Mic</button>
       </div>
     </div>
 
@@ -233,6 +236,7 @@
   let room = null;
   let statsInterval = null;
   let localCameraTrack = null;
+  let micEnabled = false;
 
   // ── JWT via Web Crypto ──
   async function makeToken(roomName) {
@@ -318,14 +322,20 @@
       return;
     }
 
-    log('📷 Requesting camera permission…', 'info');
+    log('📷 Requesting camera + mic permission…', 'info');
     try {
       // Explicitly request permission first so the browser prompt always appears
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }, audio: true });
       stream.getTracks().forEach(t => t.stop()); // release immediately; LiveKit will reopen it
 
-      // Use LiveKit's high-level API to capture and publish
+      // Publish camera and mic via LiveKit
       await room.localParticipant.setCameraEnabled(true);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      micEnabled = true;
+      document.getElementById('btn-mic').style.display = 'block';
+      document.getElementById('btn-mic').textContent = 'Mute Mic';
+      document.getElementById('btn-mic').classList.remove('muted');
+      log('🎤 Microphone published', 'success');
 
       // Grab the published track for the PiP preview
       const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
@@ -347,15 +357,27 @@
 
   async function disableCamera() {
     if (!localCameraTrack) return;
-    await room.localParticipant.unpublishTrack(localCameraTrack);
+    await room.localParticipant.setCameraEnabled(false);
+    await room.localParticipant.setMicrophoneEnabled(false);
     localCameraTrack.detach();
-    localCameraTrack.stop();
     localCameraTrack = null;
+    micEnabled = false;
     document.getElementById('local-pip').style.display = 'none';
     document.getElementById('local-video').srcObject = null;
     document.getElementById('btn-camera').textContent = 'Enable Camera';
     document.getElementById('btn-camera').classList.remove('active');
-    log('📷 Local camera stopped', 'warn');
+    document.getElementById('btn-mic').style.display = 'none';
+    log('📷 Local camera + mic stopped', 'warn');
+  }
+
+  async function toggleMic() {
+    if (!micEnabled) return;
+    const isMuted = room.localParticipant.isMicrophoneEnabled === false;
+    await room.localParticipant.setMicrophoneEnabled(isMuted);
+    const nowMuted = !isMuted;
+    document.getElementById('btn-mic').textContent = nowMuted ? 'Unmute Mic' : 'Mute Mic';
+    document.getElementById('btn-mic').classList.toggle('muted', nowMuted);
+    log(nowMuted ? '🔇 Mic muted' : '🎤 Mic unmuted', 'info');
   }
 
   async function toggleCamera() {
@@ -384,14 +406,17 @@
         document.getElementById('btn-connect').style.display    = '';
         document.getElementById('btn-disconnect').style.display = 'none';
         document.getElementById('btn-camera').style.display     = 'none';
-        // Clean up local camera state without unpublishing (room is gone)
+        document.getElementById('btn-mic').style.display        = 'none';
+        // Clean up local camera/mic state without unpublishing (room is gone)
         if (localCameraTrack) {
           localCameraTrack.detach();
-          localCameraTrack.stop();
           localCameraTrack = null;
+          micEnabled = false;
           document.getElementById('local-pip').style.display = 'none';
           document.getElementById('btn-camera').textContent = 'Enable Camera';
           document.getElementById('btn-camera').classList.remove('active');
+          document.getElementById('btn-mic').textContent = 'Mute Mic';
+          document.getElementById('btn-mic').classList.remove('muted');
         }
         clearInterval(statsInterval);
         detachRemoteVideo();
@@ -464,6 +489,7 @@
   document.getElementById('btn-connect').addEventListener('click', connect);
   document.getElementById('btn-disconnect').addEventListener('click', disconnect);
   document.getElementById('btn-camera').addEventListener('click', toggleCamera);
+  document.getElementById('btn-mic').addEventListener('click', toggleMic);
   document.getElementById('btn-clear-log').addEventListener('click', () => { document.getElementById('log').innerHTML = ''; });
   document.getElementById('room').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
 

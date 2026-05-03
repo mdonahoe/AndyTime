@@ -18,19 +18,16 @@ private func base64url(_ data: Data) -> String {
         .replacingOccurrences(of: "=", with: "")
 }
 
-/// Signs a LiveKit publisher access token using HMAC-SHA256.
 private func livekitToken(apiKey: String, secret: String, identity: String, room: String) -> String {
     let header  = #"{"alg":"HS256","typ":"JWT"}"#
     let now     = Int(Date().timeIntervalSince1970)
     let payload = """
     {"iss":"\(apiKey)","sub":"\(identity)","iat":\(now),"exp":\(now + 21600),\
-    "video":{"roomJoin":true,"room":"\(room)","canPublish":true,"canSubscribe":false,"canPublishData":true}}
+    "video":{"roomJoin":true,"room":"\(room)","canPublish":true,"canSubscribe":true,"canPublishData":true}}
     """
-
     let h = base64url(header.data(using: .utf8)!)
     let p = base64url(payload.data(using: .utf8)!)
     let message = "\(h).\(p)"
-
     let key = secret.data(using: .utf8)!
     let msg = message.data(using: .utf8)!
     var hmac = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
@@ -44,23 +41,25 @@ private func livekitToken(apiKey: String, secret: String, identity: String, room
 
 // MARK: - CameraViewController
 
-/// Streams the front camera via LiveKit WebRTC and shows live connection stats.
-///
-/// Swipe to this page after the video channels. Enter a room name and tap Connect —
-/// a publisher token is generated automatically from the hardcoded API credentials.
-/// Open viewer.html in a browser on the same network to receive the stream.
 class CameraViewController: UIViewController {
 
     private let room = Room()
     private var cameraTrack: LocalVideoTrack?
+    private var audioTrack: LocalAudioTrack?
 
-    // UI
-    private let titleLabel    = UILabel()
-    private let videoView     = VideoView()
-    private let placeholderLabel = UILabel()
-    private let roomField     = UITextField()
-    private let connectButton = UIButton(type: .system)
-    private let statsTextView = UITextView()
+    // Local camera preview (full panel)
+    private let videoView         = VideoView()
+    private let placeholderLabel  = UILabel()
+
+    // Remote camera PiP (bottom-right corner of videoView)
+    private let remoteVideoView   = VideoView()
+    private let remotePipLabel    = UILabel()
+
+    private let titleLabel        = UILabel()
+    private let roomField         = UITextField()
+    private let connectButton     = UIButton(type: .system)
+    private let muteButton        = UIButton(type: .system)
+    private let statsTextView     = UITextView()
 
     private var statsTimer: Timer?
 
@@ -89,6 +88,7 @@ class CameraViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
+        // Local camera — full video panel
         videoView.contentMode = .scaleAspectFit
         videoView.backgroundColor = UIColor(white: 0.08, alpha: 1)
         videoView.translatesAutoresizingMaskIntoConstraints = false
@@ -102,6 +102,24 @@ class CameraViewController: UIViewController {
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         videoView.addSubview(placeholderLabel)
 
+        // Remote camera — PiP overlay in bottom-right of videoView
+        remoteVideoView.contentMode = .scaleAspectFill
+        remoteVideoView.backgroundColor = UIColor(white: 0.05, alpha: 1)
+        remoteVideoView.layer.cornerRadius = 8
+        remoteVideoView.layer.borderWidth = 1.5
+        remoteVideoView.layer.borderColor = UIColor(white: 0.3, alpha: 1).cgColor
+        remoteVideoView.clipsToBounds = true
+        remoteVideoView.isHidden = true
+        remoteVideoView.translatesAutoresizingMaskIntoConstraints = false
+        videoView.addSubview(remoteVideoView)
+
+        remotePipLabel.text = "viewer"
+        remotePipLabel.textColor = UIColor(white: 0.8, alpha: 0.7)
+        remotePipLabel.font = .systemFont(ofSize: 9, weight: .medium)
+        remotePipLabel.translatesAutoresizingMaskIntoConstraints = false
+        remoteVideoView.addSubview(remotePipLabel)
+
+        // Room field
         roomField.text = kDefaultRoom
         roomField.borderStyle = .roundedRect
         roomField.autocapitalizationType = .none
@@ -117,15 +135,28 @@ class CameraViewController: UIViewController {
         roomField.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(roomField)
 
+        // Connect button
         connectButton.setTitle("Connect", for: .normal)
         connectButton.backgroundColor = .systemBlue
         connectButton.setTitleColor(.white, for: .normal)
-        connectButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        connectButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
         connectButton.layer.cornerRadius = 10
         connectButton.addTarget(self, action: #selector(toggleConnection), for: .touchUpInside)
         connectButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(connectButton)
 
+        // Mute button (hidden until connected)
+        muteButton.setTitle("Mute", for: .normal)
+        muteButton.backgroundColor = UIColor(white: 0.2, alpha: 1)
+        muteButton.setTitleColor(.white, for: .normal)
+        muteButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        muteButton.layer.cornerRadius = 10
+        muteButton.isHidden = true
+        muteButton.addTarget(self, action: #selector(toggleMute), for: .touchUpInside)
+        muteButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(muteButton)
+
+        // Stats
         statsTextView.isEditable = false
         statsTextView.isScrollEnabled = true
         statsTextView.backgroundColor = UIColor(white: 0.07, alpha: 1)
@@ -149,15 +180,29 @@ class CameraViewController: UIViewController {
             placeholderLabel.centerYAnchor.constraint(equalTo: videoView.centerYAnchor),
             placeholderLabel.widthAnchor.constraint(equalTo: videoView.widthAnchor, constant: -40),
 
+            // Remote PiP: bottom-right corner
+            remoteVideoView.trailingAnchor.constraint(equalTo: videoView.trailingAnchor, constant: -10),
+            remoteVideoView.bottomAnchor.constraint(equalTo: videoView.bottomAnchor, constant: -10),
+            remoteVideoView.widthAnchor.constraint(equalToConstant: 120),
+            remoteVideoView.heightAnchor.constraint(equalToConstant: 90),
+
+            remotePipLabel.leadingAnchor.constraint(equalTo: remoteVideoView.leadingAnchor, constant: 4),
+            remotePipLabel.bottomAnchor.constraint(equalTo: remoteVideoView.bottomAnchor, constant: -3),
+
             roomField.topAnchor.constraint(equalTo: videoView.bottomAnchor, constant: 14),
             roomField.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             roomField.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             roomField.heightAnchor.constraint(equalToConstant: 40),
 
             connectButton.topAnchor.constraint(equalTo: roomField.bottomAnchor, constant: 12),
-            connectButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            connectButton.widthAnchor.constraint(equalToConstant: 160),
+            connectButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            connectButton.trailingAnchor.constraint(equalTo: view.centerXAnchor, constant: -6),
             connectButton.heightAnchor.constraint(equalToConstant: 44),
+
+            muteButton.topAnchor.constraint(equalTo: connectButton.topAnchor),
+            muteButton.leadingAnchor.constraint(equalTo: view.centerXAnchor, constant: 6),
+            muteButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            muteButton.heightAnchor.constraint(equalToConstant: 44),
 
             statsTextView.topAnchor.constraint(equalTo: connectButton.bottomAnchor, constant: 12),
             statsTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
@@ -174,6 +219,22 @@ class CameraViewController: UIViewController {
             Task { await disconnect() }
         default:
             Task { await connect() }
+        }
+    }
+
+    @objc private func toggleMute() {
+        guard let audio = audioTrack else { return }
+        Task {
+            if audio.isMuted {
+                try? await audio.unmute()
+            } else {
+                try? await audio.mute()
+            }
+            await MainActor.run {
+                let muted = audio.isMuted
+                muteButton.setTitle(muted ? "Unmute" : "Mute", for: .normal)
+                muteButton.backgroundColor = muted ? .systemOrange : UIColor(white: 0.2, alpha: 1)
+            }
         }
     }
 
@@ -202,28 +263,34 @@ class CameraViewController: UIViewController {
             try await room.connect(url: kLiveKitURL, token: token)
             appendStats("✓ Connected")
 
-            let granted = await AVCaptureDevice.requestAccess(for: .video)
-            guard granted else {
+            // Camera
+            let videoGranted = await AVCaptureDevice.requestAccess(for: .video)
+            if videoGranted {
+                let track = LocalVideoTrack.createCameraTrack(
+                    name: "camera",
+                    options: CameraCaptureOptions(position: .front, dimensions: .h720_169, fps: 30)
+                )
+                self.cameraTrack = track
+                try await room.localParticipant.publish(videoTrack: track)
+                await MainActor.run {
+                    track.add(videoRenderer: videoView)
+                    placeholderLabel.isHidden = true
+                }
+                appendStats("✓ Camera published")
+            } else {
                 appendStats("✗ Camera permission denied")
-                return
             }
 
-            let track = LocalVideoTrack.createCameraTrack(
-                name: "camera",
-                options: CameraCaptureOptions(
-                    position: .front,
-                    dimensions: .h720_169,
-                    fps: 30
-                )
-            )
-            self.cameraTrack = track
-
-            try await room.localParticipant.publish(videoTrack: track)
-            appendStats("✓ Camera published")
-
-            await MainActor.run {
-                track.add(videoRenderer: videoView)
-                placeholderLabel.isHidden = true
+            // Microphone
+            let audioGranted = await AVCaptureDevice.requestAccess(for: .audio)
+            if audioGranted {
+                let aTrack = LocalAudioTrack.createTrack(name: "mic")
+                self.audioTrack = aTrack
+                try await room.localParticipant.publish(audioTrack: aTrack)
+                await MainActor.run { muteButton.isHidden = false }
+                appendStats("✓ Mic published")
+            } else {
+                appendStats("✗ Mic permission denied")
             }
 
             startStatsTimer()
@@ -272,8 +339,7 @@ class CameraViewController: UIViewController {
         case .excellent: quality = "excellent ◉"
         case .good:      quality = "good ◎"
         case .poor:      quality = "poor ○"
-        case .unknown:   quality = "unknown"
-        @unknown default: quality = "?"
+        default: quality = "unknown"
         }
 
         let roomName     = room.name ?? "—"
@@ -281,6 +347,7 @@ class CameraViewController: UIViewController {
         let localSid     = room.localParticipant.sid?.description ?? "—"
         let participants = room.remoteParticipants.count + 1
         let cameraState  = cameraTrack.map { $0.isMuted ? "muted" : "live ▶" } ?? "none"
+        let micState     = audioTrack.map { $0.isMuted ? "muted 🔇" : "live ▶" } ?? "none"
 
         let text = """
         state:        \(state)
@@ -290,6 +357,7 @@ class CameraViewController: UIViewController {
         participants: \(participants)
         quality:      \(quality)
         camera:       \(cameraState)
+        mic:          \(micState)
         """
 
         DispatchQueue.main.async { [weak self] in
@@ -312,6 +380,7 @@ class CameraViewController: UIViewController {
 // MARK: - RoomDelegate
 
 extension CameraViewController: RoomDelegate {
+
     func room(_ room: Room, didUpdateConnectionState connectionState: ConnectionState, from oldValue: ConnectionState) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -333,10 +402,35 @@ extension CameraViewController: RoomDelegate {
                 connectButton.backgroundColor = .systemBlue
                 connectButton.isEnabled = true
                 placeholderLabel.isHidden = false
+                muteButton.isHidden = true
+                muteButton.setTitle("Mute", for: .normal)
+                muteButton.backgroundColor = UIColor(white: 0.2, alpha: 1)
+                remoteVideoView.isHidden = true
                 stopStatsTimer()
                 statsTextView.text = "— not connected —"
                 cameraTrack = nil
+                audioTrack = nil
             }
+        }
+    }
+
+    func room(_ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication) {
+        guard let track = publication.track as? RemoteVideoTrack else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            track.add(videoRenderer: remoteVideoView)
+            remoteVideoView.isHidden = false
+            remotePipLabel.text = participant.identity?.description ?? "—"
+        }
+        appendStats("📡 Remote video: \(participant.identity?.description ?? "—")")
+    }
+
+    func room(_ room: Room, participant: RemoteParticipant, didUnsubscribeTrack publication: RemoteTrackPublication) {
+        if publication.kind == .video {
+            DispatchQueue.main.async { [weak self] in
+                self?.remoteVideoView.isHidden = true
+            }
+            appendStats("📡 Remote video gone: \(participant.identity?.description ?? "—")")
         }
     }
 
