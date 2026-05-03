@@ -280,7 +280,7 @@ class CameraViewController: UIViewController {
         let token = livekitToken(
             apiKey: kLiveKitAPIKey,
             secret: kLiveKitAPISecret,
-            identity: UIDevice.current.name,
+            identity: ProcessInfo.processInfo.hostName.replacingOccurrences(of: ".local", with: ""),
             room: roomName
         )
 

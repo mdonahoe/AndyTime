@@ -549,7 +549,8 @@
       .on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
         log(`📡 Unsubscribed: ${track.kind} from ${participant.identity}`, 'warn');
         track.detach();
-        if (track.kind === Track.Kind.Video) removeTile(participant.identity);
+        // Don't remove the tile here — iOS republishes the track during camera switches,
+        // causing a brief unsubscribe/subscribe cycle. Only remove on ParticipantDisconnected.
         updateStats();
       })
       .on(RoomEvent.TrackMuted,   (pub, p) => log(`🔇 Muted: ${pub.kind} (${p.identity})`, 'warn'))

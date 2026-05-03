@@ -119,8 +119,8 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             }
         }
         
-        // Set the initial view controller to the first video channel (skip admin and green boundary)
-        let firstVideoController = viewControllers.first { $0 is VideoViewController }
+        // Start on the camera page
+        let firstVideoController = viewControllers.first { $0 is CameraViewController }
         if let initialViewController = firstVideoController ?? viewControllers.first {
             pageViewController.setViewControllers([initialViewController], direction: .forward, animated: true, completion: nil)
         }
@@ -141,7 +141,12 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     }
     
     private func customizeViewControllers() {
-        // Add green view first
+        // Camera / LiveKit streaming page — first so it's the landing view
+        let cameraViewController = CameraViewController()
+        viewControllers.append(cameraViewController)
+        cameraViewController.autoConnect()
+
+        // Add green view
         let greenViewController = UIViewController()
         greenViewController.view.backgroundColor = .green
         greenViewController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.bounds.height)
@@ -153,11 +158,6 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             let videoViewController = VideoViewController(name: name, channelIndex: channelIndex)
             viewControllers.append(videoViewController)
         }
-
-        // Camera / LiveKit streaming page
-        let cameraViewController = CameraViewController()
-        viewControllers.append(cameraViewController)
-        cameraViewController.autoConnect()
 
         viewControllers.append(contentsOf: self.extraViews)
         
