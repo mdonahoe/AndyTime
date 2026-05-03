@@ -27,7 +27,6 @@
       gap: 12px;
       flex-shrink: 0;
     }
-
     header h1 { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: 0.05em; }
 
     .status-dot {
@@ -37,7 +36,6 @@
     .status-dot.connecting { background: #f59e0b; animation: pulse 1s infinite; }
     .status-dot.connected  { background: #22c55e; }
     .status-dot.error      { background: #ef4444; }
-
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
     .status-text { font-size: 12px; color: #888; }
@@ -49,6 +47,7 @@
       overflow: hidden;
     }
 
+    /* ── Video panel ── */
     .video-panel {
       display: flex; flex-direction: column;
       overflow: hidden; background: #000; position: relative;
@@ -62,6 +61,30 @@
     }
     .no-video { color: #444; font-size: 14px; text-align: center; padding: 40px; }
 
+    /* Local camera PiP */
+    #local-pip {
+      position: absolute;
+      bottom: 16px; right: 16px;
+      width: 180px; height: 135px;
+      background: #111;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid #333;
+      display: none;
+    }
+    #local-pip video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* mirror local preview */
+    }
+    #pip-label {
+      position: absolute;
+      bottom: 4px; left: 6px;
+      font-size: 10px; color: rgba(255,255,255,0.6);
+      pointer-events: none;
+    }
+
+    /* ── Sidebar ── */
     .sidebar {
       display: flex; flex-direction: column;
       border-left: 1px solid #1e1e1e; overflow: hidden;
@@ -72,7 +95,6 @@
       font-size: 11px; font-weight: 600; color: #666;
       letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
     }
-
     .field { margin-bottom: 8px; }
     .field label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
     .field input {
@@ -83,7 +105,6 @@
     .field input:focus { border-color: #3b82f6; }
 
     .btn-row { display: flex; gap: 8px; margin-top: 10px; }
-
     button {
       flex: 1; padding: 8px; border: none; border-radius: 8px;
       font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
@@ -92,6 +113,8 @@
     button:not(:disabled):hover { opacity: .85; }
     #btn-connect    { background: #3b82f6; color: #fff; }
     #btn-disconnect { background: #ef4444; color: #fff; display: none; }
+    #btn-camera     { background: #6366f1; color: #fff; display: none; }
+    #btn-camera.active { background: #ef4444; }
 
     .stats-section { padding: 12px 14px 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
     .stats-section h2 {
@@ -147,6 +170,11 @@
     <div id="video-container">
       <p class="no-video" id="no-video-msg">No stream — connect in the sidebar</p>
     </div>
+    <!-- Local camera PiP overlay -->
+    <div id="local-pip">
+      <video id="local-video" autoplay playsinline muted></video>
+      <span id="pip-label">You</span>
+    </div>
   </div>
 
   <div class="sidebar">
@@ -159,6 +187,9 @@
       <div class="btn-row">
         <button id="btn-connect">Connect</button>
         <button id="btn-disconnect">Disconnect</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="btn-camera">Enable Camera</button>
       </div>
     </div>
 
@@ -197,32 +228,28 @@
   // ──────────────────────────────────────────────────────────────────────────
 
   const LC = window.LivekitClient;
-  const { Room, RoomEvent, Track, ConnectionState } = LC;
+  const { Room, RoomEvent, Track, ConnectionState, createLocalVideoTrack } = LC;
 
   let room = null;
   let statsInterval = null;
+  let localCameraTrack = null;
 
-  // ── JWT token generation via Web Crypto (no dependencies) ──
-  async function makeSubscriberToken(roomName) {
+  // ── JWT via Web Crypto ──
+  async function makeToken(roomName) {
     const enc = new TextEncoder();
-
     function b64url(buf) {
       return btoa(String.fromCharCode(...new Uint8Array(buf)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     }
-
     const now = Math.floor(Date.now() / 1000);
     const header  = b64url(enc.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
     const payload = b64url(enc.encode(JSON.stringify({
       iss: LK_KEY, sub: 'html-viewer', iat: now, exp: now + 21600,
-      video: { roomJoin: true, room: roomName, canPublish: false, canSubscribe: true },
+      video: { roomJoin: true, room: roomName, canPublish: true, canSubscribe: true },
     })));
     const message = `${header}.${payload}`;
-
     const key = await crypto.subtle.importKey(
-      'raw', enc.encode(LK_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false, ['sign']
+      'raw', enc.encode(LK_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
     );
     const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
     return `${message}.${b64url(sig)}`;
@@ -232,20 +259,17 @@
   function log(msg, type = 'data') {
     const el = document.getElementById('log');
     const now = new Date();
-    const ts = now.toTimeString().slice(0, 8) + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    const ts = now.toTimeString().slice(0,8) + '.' + String(now.getMilliseconds()).padStart(3,'0');
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-msg ${type}">${esc(msg)}</span>`;
     el.appendChild(entry);
     el.scrollTop = el.scrollHeight;
   }
-
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   function setStatus(cls, text) {
-    document.getElementById('status-dot').className  = 'status-dot ' + cls;
+    document.getElementById('status-dot').className = 'status-dot ' + cls;
     document.getElementById('status-text').textContent = text;
   }
 
@@ -258,31 +282,85 @@
     el.className = 'stat-value ' + (state === ConnectionState.Connected ? 'connected' : state === ConnectionState.Disconnected ? 'error' : '');
     document.getElementById('s-room').textContent = room.name || '—';
     document.getElementById('s-parts').textContent = room.numParticipants;
-
     let tracks = 0;
     room.remoteParticipants.forEach(p => p.trackPublications.forEach(pub => { if (pub.isSubscribed) tracks++; }));
     document.getElementById('s-tracks').textContent = tracks;
-
     const lat = room.engine?.latency;
     document.getElementById('s-latency').textContent = lat != null ? lat + ' ms' : '—';
   }
 
-  // ── Video ──
-  function attachVideo(track) {
+  // ── Remote video ──
+  function attachRemoteVideo(track) {
     const container = document.getElementById('video-container');
     document.getElementById('no-video-msg').style.display = 'none';
     container.querySelector('video')?.remove();
     const el = track.attach();
     el.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
     container.appendChild(el);
-    log(`▶ Video attached (${track.sid})`, 'track');
+    log(`▶ Remote video attached (${track.sid})`, 'track');
   }
 
-  function detachAll() {
-    const container = document.getElementById('video-container');
-    container.querySelectorAll('video, audio').forEach(el => el.remove());
+  function detachRemoteVideo() {
+    document.getElementById('video-container').querySelectorAll('video').forEach(el => el.remove());
     document.getElementById('no-video-msg').style.display = '';
-    log('⏹ All tracks detached', 'warn');
+  }
+
+  // ── Local camera ──
+  async function enableCamera() {
+    if (localCameraTrack) return;
+
+    if (!window.isSecureContext) {
+      log('✗ Camera requires a secure context. Open this page via http://localhost:… not a LAN IP.', 'error');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      log('✗ getUserMedia not available in this browser.', 'error');
+      return;
+    }
+
+    log('📷 Requesting camera permission…', 'info');
+    try {
+      // Explicitly request permission first so the browser prompt always appears
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 1280, height: 720 }, audio: false });
+      stream.getTracks().forEach(t => t.stop()); // release immediately; LiveKit will reopen it
+
+      // Use LiveKit's high-level API to capture and publish
+      await room.localParticipant.setCameraEnabled(true);
+
+      // Grab the published track for the PiP preview
+      const pub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      if (pub?.track) {
+        localCameraTrack = pub.track;
+        const localVideo = document.getElementById('local-video');
+        localCameraTrack.attach(localVideo);
+        document.getElementById('local-pip').style.display = 'block';
+      }
+
+      log('✓ Local camera published', 'success');
+      document.getElementById('btn-camera').textContent = 'Disable Camera';
+      document.getElementById('btn-camera').classList.add('active');
+    } catch (err) {
+      log(`✗ Camera error: ${err.message}`, 'error');
+      localCameraTrack = null;
+    }
+  }
+
+  async function disableCamera() {
+    if (!localCameraTrack) return;
+    await room.localParticipant.unpublishTrack(localCameraTrack);
+    localCameraTrack.detach();
+    localCameraTrack.stop();
+    localCameraTrack = null;
+    document.getElementById('local-pip').style.display = 'none';
+    document.getElementById('local-video').srcObject = null;
+    document.getElementById('btn-camera').textContent = 'Enable Camera';
+    document.getElementById('btn-camera').classList.remove('active');
+    log('📷 Local camera stopped', 'warn');
+  }
+
+  async function toggleCamera() {
+    if (localCameraTrack) await disableCamera();
+    else await enableCamera();
   }
 
   // ── Room ──
@@ -294,7 +372,8 @@
         log(`✓ Connected — room: ${room.name}`, 'success');
         setStatus('connected', `Connected · ${room.name}`);
         document.getElementById('btn-connect').style.display    = 'none';
-        document.getElementById('btn-disconnect').style.display = '';
+        document.getElementById('btn-disconnect').style.display = 'block';
+        document.getElementById('btn-camera').style.display     = 'block';
         document.getElementById('btn-connect').disabled = false;
         statsInterval = setInterval(updateStats, 1000);
         updateStats();
@@ -304,8 +383,18 @@
         setStatus('', 'Disconnected');
         document.getElementById('btn-connect').style.display    = '';
         document.getElementById('btn-disconnect').style.display = 'none';
+        document.getElementById('btn-camera').style.display     = 'none';
+        // Clean up local camera state without unpublishing (room is gone)
+        if (localCameraTrack) {
+          localCameraTrack.detach();
+          localCameraTrack.stop();
+          localCameraTrack = null;
+          document.getElementById('local-pip').style.display = 'none';
+          document.getElementById('btn-camera').textContent = 'Enable Camera';
+          document.getElementById('btn-camera').classList.remove('active');
+        }
         clearInterval(statsInterval);
-        detachAll();
+        detachRemoteVideo();
         updateStats();
       })
       .on(RoomEvent.Reconnecting,  () => { log('⟳ Reconnecting…', 'warn');  setStatus('connecting', 'Reconnecting…'); })
@@ -313,9 +402,9 @@
       .on(RoomEvent.ParticipantConnected,    p => { log(`👤 Joined: ${p.identity}`, 'info');  updateStats(); })
       .on(RoomEvent.ParticipantDisconnected, p => { log(`👤 Left: ${p.identity}`, 'warn');    updateStats(); })
       .on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
-        log(`📡 Track subscribed: ${track.kind} from ${participant.identity}`, 'track');
+        log(`📡 Subscribed: ${track.kind} from ${participant.identity}`, 'track');
         if (track.kind === Track.Kind.Video) {
-          attachVideo(track);
+          attachRemoteVideo(track);
         } else if (track.kind === Track.Kind.Audio) {
           document.body.appendChild(track.attach());
           log('🔊 Audio attached', 'track');
@@ -323,12 +412,9 @@
         updateStats();
       })
       .on(RoomEvent.TrackUnsubscribed, (track, pub, participant) => {
-        log(`📡 Track unsubscribed: ${track.kind} from ${participant.identity}`, 'warn');
+        log(`📡 Unsubscribed: ${track.kind} from ${participant.identity}`, 'warn');
         track.detach();
-        if (track.kind === Track.Kind.Video) {
-          document.getElementById('video-container').querySelectorAll('video').forEach(el => el.remove());
-          document.getElementById('no-video-msg').style.display = '';
-        }
+        if (track.kind === Track.Kind.Video) detachRemoteVideo();
         updateStats();
       })
       .on(RoomEvent.TrackMuted,   (pub, p) => log(`🔇 Muted: ${pub.kind} (${p.identity})`, 'warn'))
@@ -338,17 +424,16 @@
       .on(RoomEvent.MediaDevicesError, err => log(`⚠️ Media error: ${err.message}`, 'error'));
   }
 
-  // ── Connect ──
+  // ── Connect / disconnect ──
   async function connect() {
     const roomName = document.getElementById('room').value.trim() || 'andytime';
-
     document.getElementById('btn-connect').disabled = true;
     setStatus('connecting', 'Connecting…');
-    log(`⟳ Generating subscriber token for room "${roomName}"…`, 'info');
+    log(`⟳ Generating token for room "${roomName}"…`, 'info');
 
     let token;
     try {
-      token = await makeSubscriberToken(roomName);
+      token = await makeToken(roomName);
     } catch (err) {
       log(`✗ Token generation failed: ${err.message}`, 'error');
       setStatus('error', 'Error');
@@ -358,7 +443,6 @@
 
     log(`⟳ Connecting to ${LK_URL}…`, 'info');
     createRoom();
-
     try {
       await room.connect(LK_URL, token);
     } catch (err) {
@@ -376,11 +460,11 @@
     room = null;
   }
 
+  // ── Event wiring ──
   document.getElementById('btn-connect').addEventListener('click', connect);
   document.getElementById('btn-disconnect').addEventListener('click', disconnect);
-  document.getElementById('btn-clear-log').addEventListener('click', () => {
-    document.getElementById('log').innerHTML = '';
-  });
+  document.getElementById('btn-camera').addEventListener('click', toggleCamera);
+  document.getElementById('btn-clear-log').addEventListener('click', () => { document.getElementById('log').innerHTML = ''; });
   document.getElementById('room').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
 
   log('LiveKit viewer ready  ·  server: ' + LK_URL, 'info');
