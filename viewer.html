@@ -118,6 +118,12 @@
     #btn-mic        { background: #059669; color: #fff; display: none; }
     #btn-mic.muted  { background: #f59e0b; }
 
+    .cam-ctrl { padding: 14px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; display: none; }
+    .cam-ctrl h2 { font-size: 11px; font-weight: 600; color: #666; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+    #cam-name { font-size: 13px; color: #e0e0e0; margin-bottom: 8px; text-align: center; font-weight: 500; }
+    #btn-prev-cam, #btn-next-cam { background: #1e3a5f; color: #60a5fa; font-size: 18px; }
+    #btn-prev-cam:not(:disabled):hover, #btn-next-cam:not(:disabled):hover { background: #1e4a7f; }
+
     .stats-section { padding: 12px 14px 10px; border-bottom: 1px solid #1e1e1e; flex-shrink: 0; }
     .stats-section h2 {
       font-size: 11px; font-weight: 600; color: #666;
@@ -196,6 +202,15 @@
       </div>
     </div>
 
+    <div class="cam-ctrl" id="cam-ctrl">
+      <h2>iOS Camera</h2>
+      <div id="cam-name">—</div>
+      <div class="btn-row">
+        <button id="btn-prev-cam">◀</button>
+        <button id="btn-next-cam">▶</button>
+      </div>
+    </div>
+
     <div class="stats-section">
       <h2>Stats</h2>
       <div id="stats-grid">
@@ -237,6 +252,8 @@
   let statsInterval = null;
   let localCameraTrack = null;
   let micEnabled = false;
+  let iosCameras = [];
+  let iosCameraIndex = 0;
 
   // ── JWT via Web Crypto ──
   async function makeToken(roomName) {
@@ -418,6 +435,9 @@
           document.getElementById('btn-mic').textContent = 'Mute Mic';
           document.getElementById('btn-mic').classList.remove('muted');
         }
+        iosCameras = [];
+        iosCameraIndex = 0;
+        document.getElementById('cam-ctrl').style.display = 'none';
         clearInterval(statsInterval);
         detachRemoteVideo();
         updateStats();
@@ -446,7 +466,40 @@
       .on(RoomEvent.TrackUnmuted, (pub, p) => log(`🔊 Unmuted: ${pub.kind} (${p.identity})`, 'info'))
       .on(RoomEvent.ConnectionQualityChanged, (q, p) => log(`📶 Quality: ${q} (${p.identity})`, 'data'))
       .on(RoomEvent.SignalConnected, () => log('🔗 Signal connected', 'info'))
-      .on(RoomEvent.MediaDevicesError, err => log(`⚠️ Media error: ${err.message}`, 'error'));
+      .on(RoomEvent.MediaDevicesError, err => log(`⚠️ Media error: ${err.message}`, 'error'))
+      .on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+        if (topic !== 'camera-control') return;
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload));
+          if (msg.type === 'cameraList') {
+            iosCameras = msg.cameras || [];
+            iosCameraIndex = msg.current ?? 0;
+            updateCameraCtrl();
+            log(`📷 iOS cameras: [${iosCameras.join(', ')}] — current: ${iosCameras[iosCameraIndex]}`, 'info');
+          }
+        } catch (e) { /* ignore malformed */ }
+      });
+  }
+
+  // ── iOS camera control ──
+  function updateCameraCtrl() {
+    const section = document.getElementById('cam-ctrl');
+    if (iosCameras.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    document.getElementById('cam-name').textContent = iosCameras[iosCameraIndex] ?? '—';
+    document.getElementById('btn-prev-cam').disabled = iosCameras.length <= 1;
+    document.getElementById('btn-next-cam').disabled = iosCameras.length <= 1;
+  }
+
+  async function requestCameraSwitch(index) {
+    if (!room || index < 0 || index >= iosCameras.length) return;
+    const data = new TextEncoder().encode(JSON.stringify({ type: 'switchCamera', index }));
+    try {
+      await room.localParticipant.publishData(data, { topic: 'camera-control', reliable: true });
+      log(`📷 Switching to: ${iosCameras[index]}`, 'info');
+    } catch (e) {
+      log(`✗ Camera switch error: ${e.message}`, 'error');
+    }
   }
 
   // ── Connect / disconnect ──
@@ -490,6 +543,14 @@
   document.getElementById('btn-disconnect').addEventListener('click', disconnect);
   document.getElementById('btn-camera').addEventListener('click', toggleCamera);
   document.getElementById('btn-mic').addEventListener('click', toggleMic);
+  document.getElementById('btn-prev-cam').addEventListener('click', () => {
+    const i = (iosCameraIndex - 1 + iosCameras.length) % iosCameras.length;
+    requestCameraSwitch(i);
+  });
+  document.getElementById('btn-next-cam').addEventListener('click', () => {
+    const i = (iosCameraIndex + 1) % iosCameras.length;
+    requestCameraSwitch(i);
+  });
   document.getElementById('btn-clear-log').addEventListener('click', () => { document.getElementById('log').innerHTML = ''; });
   document.getElementById('room').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
 

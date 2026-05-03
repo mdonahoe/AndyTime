@@ -155,7 +155,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         }
 
         // Camera / LiveKit streaming page
-        viewControllers.append(CameraViewController())
+        let cameraViewController = CameraViewController()
+        viewControllers.append(cameraViewController)
+        cameraViewController.autoConnect()
 
         viewControllers.append(contentsOf: self.extraViews)
         

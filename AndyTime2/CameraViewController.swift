@@ -41,11 +41,36 @@ private func livekitToken(apiKey: String, secret: String, identity: String, room
 
 // MARK: - CameraViewController
 
+// MARK: - Camera option
+
+private struct CameraOption {
+    let name: String
+    let device: AVCaptureDevice
+}
+
+private func availableCameras() -> [CameraOption] {
+    var opts: [CameraOption] = []
+    func probe(_ type: AVCaptureDevice.DeviceType, _ pos: AVCaptureDevice.Position, _ name: String) {
+        let s = AVCaptureDevice.DiscoverySession(deviceTypes: [type], mediaType: .video, position: pos)
+        if let d = s.devices.first { opts.append(CameraOption(name: name, device: d)) }
+    }
+    probe(.builtInWideAngleCamera, .front, "Front")
+    probe(.builtInWideAngleCamera, .back,  "Back Wide")
+    probe(.builtInUltraWideCamera, .back,  "Back Ultra Wide")
+    probe(.builtInTelephotoCamera, .back,  "Back Telephoto")
+    return opts
+}
+
+// MARK: - CameraViewController
+
 class CameraViewController: UIViewController {
 
     private let room = Room()
     private var cameraTrack: LocalVideoTrack?
     private var audioTrack: LocalAudioTrack?
+
+    private var cameraOptions: [CameraOption] = []
+    private var currentCameraIndex = 0
 
     // Local camera preview (full panel)
     private let videoView         = VideoView()
@@ -213,6 +238,14 @@ class CameraViewController: UIViewController {
 
     // MARK: - Connection
 
+    /// Call this at app launch to connect without waiting for the user to navigate here.
+    /// Forces the view to load so UI is ready before any delegate callbacks arrive.
+    func autoConnect() {
+        _ = view // trigger viewDidLoad if not yet loaded
+        guard room.connectionState == .disconnected else { return }
+        Task { await connect() }
+    }
+
     @objc private func toggleConnection() {
         switch room.connectionState {
         case .connected, .reconnecting:
@@ -239,6 +272,7 @@ class CameraViewController: UIViewController {
     }
 
     private func connect() async {
+        guard room.connectionState == .disconnected else { return }
         let roomName = roomField.text?.trimmingCharacters(in: .whitespaces).isEmpty == false
             ? roomField.text!.trimmingCharacters(in: .whitespaces)
             : kDefaultRoom
@@ -266,9 +300,12 @@ class CameraViewController: UIViewController {
             // Camera
             let videoGranted = await AVCaptureDevice.requestAccess(for: .video)
             if videoGranted {
+                cameraOptions = availableCameras()
+                currentCameraIndex = 0
+                let firstDevice = cameraOptions.first?.device
                 let track = LocalVideoTrack.createCameraTrack(
                     name: "camera",
-                    options: CameraCaptureOptions(position: .front, dimensions: .h720_169, fps: 30)
+                    options: CameraCaptureOptions(device: firstDevice, dimensions: .h720_169, fps: 30)
                 )
                 self.cameraTrack = track
                 try await room.localParticipant.publish(videoTrack: track)
@@ -276,7 +313,8 @@ class CameraViewController: UIViewController {
                     track.add(videoRenderer: videoView)
                     placeholderLabel.isHidden = true
                 }
-                appendStats("✓ Camera published")
+                appendStats("✓ Camera published (\(cameraOptions.first?.name ?? "front"))")
+                sendCameraList()
             } else {
                 appendStats("✗ Camera permission denied")
             }
@@ -309,6 +347,55 @@ class CameraViewController: UIViewController {
         appendStats("⟳ Disconnecting…")
         stopStatsTimer()
         await room.disconnect()
+    }
+
+    // MARK: - Camera switching
+
+    private func sendCameraList() {
+        guard room.connectionState == .connected, !cameraOptions.isEmpty else { return }
+        let msg: [String: Any] = [
+            "type":    "cameraList",
+            "cameras": cameraOptions.map { $0.name },
+            "current": currentCameraIndex,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: msg) else { return }
+        Task {
+            try? await room.localParticipant.publish(
+                data: data,
+                options: DataPublishOptions(topic: "camera-control", reliable: true)
+            )
+        }
+    }
+
+    private func switchCamera(to index: Int) async {
+        guard index >= 0, index < cameraOptions.count, index != currentCameraIndex else { return }
+        guard let oldTrack = cameraTrack else { return }
+        let option = cameraOptions[index]
+
+        await MainActor.run { oldTrack.remove(videoRenderer: videoView) }
+
+        // Unpublish old track
+        if let pub = room.localParticipant.trackPublications.values
+            .compactMap({ $0 as? LocalTrackPublication })
+            .first(where: { $0.track === oldTrack }) {
+            try? await room.localParticipant.unpublish(publication: pub)
+        }
+
+        // Publish new track
+        let newTrack = LocalVideoTrack.createCameraTrack(
+            name: "camera",
+            options: CameraCaptureOptions(device: option.device, dimensions: .h720_169, fps: 30)
+        )
+        cameraTrack = newTrack
+        currentCameraIndex = index
+        do {
+            try await room.localParticipant.publish(videoTrack: newTrack)
+            await MainActor.run { newTrack.add(videoRenderer: videoView) }
+            appendStats("📷 Camera: \(option.name)")
+            sendCameraList()
+        } catch {
+            appendStats("✗ Camera switch failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Stats
@@ -440,6 +527,22 @@ extension CameraViewController: RoomDelegate {
 
     func room(_ room: Room, didFailToConnectWithError error: LiveKitError?) {
         appendStats("✗ Failed: \(error?.localizedDescription ?? "unknown error")")
+    }
+
+    func room(_ room: Room, participantDidConnect participant: RemoteParticipant) {
+        // Small delay so the new participant's data channel is ready to receive
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.sendCameraList()
+        }
+    }
+
+    func room(_ room: Room, participant: RemoteParticipant?, didReceiveData data: Data, forTopic topic: String, encryptionType: EncryptionType) {
+        guard topic == "camera-control",
+              let msg = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = msg["type"] as? String else { return }
+        if type == "switchCamera", let index = msg["index"] as? Int {
+            Task { await switchCamera(to: index) }
+        }
     }
 }
 
