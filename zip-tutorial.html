@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How ZIP Compression Works — Interactive Tutorial</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #253347;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #818cf8;
+
+  --lit-bg: #1e3a8a;
+  --lit-hl: #3b82f6;
+  --lit-text: #bfdbfe;
+
+  --ref-bg: #78350f;
+  --ref-hl: #f59e0b;
+  --ref-text: #fde68a;
+
+  --src-bg: #14532d;
+  --src-hl: #22c55e;
+  --src-text: #bbf7d0;
+
+  --flag-bg: #2e1065;
+  --flag-text: #ddd6fe;
+
+  --refm-bg: #4a044e;
+  --refm-text: #f5d0fe;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 100vh;
+}
+
+.container { max-width: 860px; margin: 0 auto; padding: 0 1.25rem; }
+
+h1 {
+  font-size: 2.4rem; font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+h2 { font-size: 1.5rem; font-weight: 700; color: #a78bfa; margin: 2rem 0 0.75rem; }
+h3 { font-size: 1.1rem; font-weight: 600; color: #93c5fd; margin: 1.25rem 0 0.5rem; }
+p { margin-bottom: 0.9rem; color: var(--muted); }
+p strong { color: var(--text); }
+code {
+  background: var(--surface2); padding: 0.1rem 0.35rem;
+  border-radius: 4px; font-family: 'Courier New', monospace;
+  font-size: 0.9em; color: #c7d2fe;
+}
+
+.hero { padding: 3.5rem 0 1.5rem; text-align: center; }
+.hero .subtitle { font-size: 1.1rem; color: var(--muted); margin: 0.5rem 0 1.5rem; }
+
+.section { padding: 2.5rem 0 1rem; border-top: 1px solid var(--border); }
+
+nav.pills {
+  display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 1rem;
+}
+nav.pills a {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); padding: 0.35rem 0.9rem; border-radius: 20px;
+  text-decoration: none; font-size: 0.82rem; transition: all 0.2s;
+}
+nav.pills a:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.25rem; margin: 1rem 0;
+}
+.card.highlight { border-color: #4f46e5; }
+
+.pipeline {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.4rem; flex-wrap: wrap; margin: 1.25rem 0;
+}
+.pipeline-box {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.5rem 0.85rem; text-align: center;
+}
+.pipeline-box .t { font-weight: 700; font-size: 0.9rem; }
+.pipeline-box .s { font-size: 0.68rem; color: var(--muted); }
+.arrow { color: var(--muted); font-size: 1.1rem; }
+
+.code-block {
+  background: var(--surface2); border-radius: 8px; padding: 1rem;
+  font-family: 'Courier New', monospace; font-size: 0.82rem;
+  overflow-x: auto; border: 1px solid var(--border); margin: 0.75rem 0;
+  color: #93c5fd; line-height: 1.6; white-space: pre;
+}
+.code-block .c { color: #64748b; }
+
+.note {
+  background: #1e1b4b; border-left: 3px solid #4f46e5;
+  border-radius: 0 8px 8px 0; padding: 0.7rem 1rem; margin: 0.75rem 0;
+  font-size: 0.88rem; color: #c7d2fe;
+}
+
+/* ── Simulator ─────────────────────────────────────────────── */
+
+textarea#inp {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.65rem 0.9rem; color: var(--text);
+  font-family: 'Courier New', monospace; font-size: 0.88rem;
+  resize: vertical; min-height: 72px; outline: none;
+  transition: border-color 0.2s;
+}
+textarea#inp:focus { border-color: #4f46e5; }
+
+.btn {
+  background: #4f46e5; color: white; border: none; border-radius: 8px;
+  padding: 0.55rem 1.3rem; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s, transform 0.1s; margin-top: 0.65rem;
+}
+.btn:hover { background: #6366f1; }
+.btn:active { transform: scale(0.97); }
+
+.stats {
+  display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0;
+}
+.stat {
+  background: var(--surface2); border-radius: 8px; padding: 0.6rem 1rem;
+  flex: 1; min-width: 90px; text-align: center;
+}
+.stat .v { font-size: 1.4rem; font-weight: 800; color: var(--accent); line-height: 1; }
+.stat .l { font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+
+.legend {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0.75rem 0; font-size: 0.78rem;
+}
+.leg-item { display: flex; align-items: center; gap: 0.35rem; color: var(--muted); }
+.leg-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+/* Token view */
+#token-display {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  font-family: 'Courier New', monospace; font-size: 0.82rem;
+  padding: 0.9rem; background: var(--surface2);
+  border-radius: 8px; border: 1px solid var(--border); min-height: 48px;
+}
+.tok {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 4px; cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s; border: 1px solid transparent;
+}
+.tok:hover { transform: translateY(-1px); }
+.tok.lit-tok { background: var(--lit-bg); color: var(--lit-text); border-color: var(--lit-hl); }
+.tok.ref-tok { background: var(--ref-bg); color: var(--ref-text); border-color: var(--ref-hl); }
+.tok .tlabel { font-size: 0.62rem; opacity: 0.7; }
+.tok.tok-faded { opacity: 0.25; }
+
+/* Annotated input */
+#input-display {
+  font-family: 'Courier New', monospace; font-size: 0.92rem; line-height: 2.1;
+  word-break: break-all; padding: 0.9rem;
+  background: var(--surface2); border-radius: 8px; border: 1px solid var(--border);
+  min-height: 48px;
+}
+.ic {
+  display: inline-block; padding: 1px 1px; border-radius: 3px;
+  border: 2px solid transparent; transition: all 0.12s;
+}
+.ic.hl-lit  { background: var(--lit-bg); color: var(--lit-text); border-color: var(--lit-hl); }
+.ic.hl-src  { background: var(--src-bg); color: var(--src-text); border-color: var(--src-hl); }
+.ic.hl-tgt  { background: var(--ref-bg); color: var(--ref-text); border-color: var(--ref-hl); }
+
+/* Output bytes */
+#output-bytes {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  padding: 0.9rem; background: var(--surface2);
+  border-radius: 8px; border: 1px solid var(--border); min-height: 48px;
+}
+.bb {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 5px; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.12s; user-select: none;
+  position: relative;
+}
+.bb .bh { font-size: 0.68rem; font-weight: bold; font-family: 'Courier New', monospace; line-height: 1; }
+.bb .bl { font-size: 0.52rem; margin-top: 2px; opacity: 0.75; font-family: sans-serif; }
+.bb:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1; }
+.bb.sel  { border-color: #fff !important; box-shadow: 0 0 0 2px white; transform: translateY(-3px); z-index: 2; }
+
+.bb.t-flag-lit  { background: var(--flag-bg);  color: var(--flag-text); border-color: #4338ca; }
+.bb.t-lit-val   { background: var(--lit-bg);   color: var(--lit-text);  border-color: #1d4ed8; }
+.bb.t-flag-ref  { background: var(--refm-bg);  color: var(--refm-text); border-color: #86198f; }
+.bb.t-ref-len   { background: var(--ref-bg);   color: var(--ref-text);  border-color: #b45309; }
+.bb.t-ref-dst   { background: #431407;         color: #fed7aa;          border-color: #c2410c; }
+
+/* grouped: faint gap between token groups */
+.bb.grp-start { margin-left: 4px; }
+
+/* Info panel */
+#info-panel {
+  background: var(--surface); border: 1px solid #4f46e5;
+  border-radius: 8px; padding: 1rem 1.2rem; min-height: 80px;
+}
+#info-panel .it { font-weight: 700; color: var(--accent); margin-bottom: 0.4rem; font-size: 0.97rem; }
+#info-panel .ib { color: var(--muted); font-size: 0.87rem; line-height: 1.6; }
+#info-panel .ib strong { color: var(--text); }
+
+.sec-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.4rem;
+}
+.sec-hdr h3 { margin: 0; }
+.sec-hdr span { font-size: 0.72rem; color: var(--muted); }
+
+/* ZIP format table */
+.ftable { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0.75rem 0; }
+.ftable th {
+  background: var(--surface2); color: var(--muted); font-weight: 600;
+  padding: 0.45rem 0.7rem; text-align: left; border-bottom: 1px solid var(--border);
+}
+.ftable td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+.ftable td:first-child { font-family: monospace; color: var(--text); white-space: nowrap; }
+.ftable tr:hover td { background: var(--surface2); }
+
+@media (max-width: 560px) {
+  h1 { font-size: 1.7rem; }
+  .bb { width: 32px; height: 32px; }
+  .bb .bh { font-size: 0.6rem; }
+  .bb .bl { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ── Hero ─────────────────────────────────────────── -->
+<div class="hero">
+  <h1>How ZIP Compression Works</h1>
+  <p class="subtitle">A byte-level interactive tour of DEFLATE compression</p>
+  <nav class="pills">
+    <a href="#overview">Overview</a>
+    <a href="#lz77">LZ77</a>
+    <a href="#huffman">Huffman</a>
+    <a href="#simulator">Simulator</a>
+    <a href="#format">ZIP Format</a>
+  </nav>
+</div>
+
+<!-- ── Overview ─────────────────────────────────────── -->
+<section class="section" id="overview">
+  <h2>The Big Picture</h2>
+  <p>ZIP files use the <strong>DEFLATE</strong> algorithm, a two-stage pipeline:</p>
+
+  <div class="pipeline">
+    <div class="pipeline-box"><div class="t">Raw Input</div><div class="s">your bytes</div></div>
+    <div class="arrow">→</div>
+    <div class="pipeline-box"><div class="t">LZ77</div><div class="s">remove repetition</div></div>
+    <div class="arrow">→</div>
+    <div class="pipeline-box"><div class="t">Huffman</div><div class="s">use fewer bits</div></div>
+    <div class="arrow">→</div>
+    <div class="pipeline-box"><div class="t">ZIP Bytes</div><div class="s">compressed output</div></div>
+  </div>
+
+  <p><strong>Stage 1 — LZ77:</strong> Scans the input for repeated byte sequences and replaces them with compact <em>back-references</em>: a (length, distance) pair that says "copy N bytes from M bytes ago." The more repetition in your data, the bigger the win.</p>
+  <p><strong>Stage 2 — Huffman coding:</strong> Assigns shorter bit-codes to more frequent symbols. The letter <code>e</code> might need only 3 bits; a rare byte like <code>0x7E</code> might need 12. On average, this beats the fixed 8 bits per byte used by raw ASCII.</p>
+  <p>The simulator below focuses on LZ77 using a simplified fixed-width byte format so each output byte maps cleanly to its input source. Tap any output byte to trace it back.</p>
+</section>
+
+<!-- ── LZ77 ─────────────────────────────────────────── -->
+<section class="section" id="lz77">
+  <h2>Stage 1: LZ77 — Eliminating Repetition</h2>
+  <p>LZ77 maintains a <strong>sliding window</strong> of recently-seen bytes. At each position it looks backward to find the longest sequence that already appeared in the window.</p>
+
+  <div class="card">
+    <p>Example: <code>"abcabcabc"</code></p>
+    <div class="code-block"><span class="c">// Position 0-2: nothing in window yet → output literals</span>
+Literal 'a'   Literal 'b'   Literal 'c'
+
+<span class="c">// Position 3: window holds "abc", and input[3..8] = "abcabc"</span>
+<span class="c">// Found match at dist=3, len=6 — the whole "abcabc" repeats!</span>
+BackRef(len=6, dist=3)
+
+<span class="c">// Total: 3 literals + 1 back-reference (vs 9 raw bytes)</span></div>
+  </div>
+
+  <h3>Overlapping references</h3>
+  <p>The decoder reconstructs output left-to-right, so a back-reference can point to bytes it's still writing. This lets a single reference expand into a long run:</p>
+  <div class="code-block"><span class="c">// Input: "aaaaaaa" (7 a's)</span>
+Literal 'a'   BackRef(len=6, dist=1)
+
+<span class="c">// Decoder: write 'a', then copy 6 bytes from 1 position back</span>
+<span class="c">// Each copy step reads the 'a' just written → "aaaaaaa" ✓</span></div>
+
+  <h3>Minimum match length</h3>
+  <p>In our simplified format a back-reference costs 4 bytes (flag + length + 2× distance), so we only emit one when the match is <strong>at least 3 bytes</strong> — otherwise a literal is cheaper. Real DEFLATE uses a 3-byte minimum for the same reason.</p>
+</section>
+
+<!-- ── Huffman ───────────────────────────────────────── -->
+<section class="section" id="huffman">
+  <h2>Stage 2: Huffman Coding</h2>
+  <p>After LZ77 we have a stream of symbols (literals and length/distance pairs). Huffman coding replaces each symbol with a variable-length bit string: short codes for frequent symbols, longer codes for rare ones.</p>
+
+  <div class="card">
+    <div class="code-block"><span class="c">// Frequency analysis of "aababc":</span>
+'a' × 3  →  code: 0          (1 bit)
+'b' × 2  →  code: 10         (2 bits)
+'c' × 1  →  code: 11         (2 bits)
+
+<span class="c">// Original: 6 chars × 8 bits = 48 bits</span>
+<span class="c">// Huffman:  (3×1) + (2×2) + (1×2) = 9 bits</span></div>
+  </div>
+
+  <p>The Huffman tree is stored at the start of each compressed block so the decoder can reconstruct it. In practice DEFLATE uses two trees: one for literals/lengths and one for distances.</p>
+
+  <div class="note">
+    The simulator below skips Huffman coding and uses fixed-width bytes (1 byte per literal, 4 bytes per back-reference). This makes every output byte map 1-to-1 to a token, so you can trace provenance clearly. The LZ77 back-reference structure is identical to what real DEFLATE uses — only the bit-packing layer is simplified.
+  </div>
+</section>
+
+<!-- ── Simulator ─────────────────────────────────────── -->
+<section class="section" id="simulator">
+  <h2>Interactive Byte Simulator</h2>
+  <p>Edit the input below and press <strong>Compress</strong>. Then <strong>tap or click any output byte</strong> to highlight the input bytes it came from.</p>
+
+  <div class="card highlight">
+    <label style="display:block;font-weight:600;margin-bottom:0.4rem;font-size:0.9rem;">Input text:</label>
+    <textarea id="inp" spellcheck="false">the cat sat on the mat and the cat sat again</textarea>
+    <button class="btn" onclick="runSim()">&#9654; Compress</button>
+  </div>
+
+  <div class="stats" id="stats" style="display:none">
+    <div class="stat"><div class="v" id="s-in">0</div><div class="l">Input bytes</div></div>
+    <div class="stat"><div class="v" id="s-out">0</div><div class="l">Output bytes</div></div>
+    <div class="stat"><div class="v" id="s-refs">0</div><div class="l">Back-refs</div></div>
+    <div class="stat"><div class="v" id="s-saved">0</div><div class="l">Bytes saved by refs</div></div>
+  </div>
+
+  <div class="legend" id="leg" style="display:none">
+    <div class="leg-item"><div class="leg-swatch" style="background:#2e1065;border:1.5px solid #4338ca"></div>Literal flag (0x00)</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#1e3a8a;border:1.5px solid #3b82f6"></div>Literal value</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#4a044e;border:1.5px solid #86198f"></div>Back-ref flag (0xFF)</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#78350f;border:1.5px solid #f59e0b"></div>Back-ref length</div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#431407;border:1.5px solid #c2410c"></div>Back-ref distance (2 bytes)</div>
+  </div>
+
+  <!-- LZ77 tokens -->
+  <div id="tok-sec" style="display:none;margin-top:1.25rem">
+    <div class="sec-hdr"><h3>LZ77 Tokens</h3><span>click a token to select it</span></div>
+    <div id="token-display"></div>
+  </div>
+
+  <!-- Annotated input -->
+  <div id="inp-sec" style="display:none;margin-top:1.25rem">
+    <div class="sec-hdr">
+      <h3>Input (annotated)</h3>
+      <span>
+        <span style="color:#3b82f6">&#9632;</span> literal &nbsp;
+        <span style="color:#22c55e">&#9632;</span> ref source &nbsp;
+        <span style="color:#f59e0b">&#9632;</span> ref target
+      </span>
+    </div>
+    <div id="input-display"></div>
+  </div>
+
+  <!-- Output bytes -->
+  <div id="out-sec" style="display:none;margin-top:1.25rem">
+    <div class="sec-hdr"><h3>Output Bytes</h3><span>tap a byte to trace its origin</span></div>
+    <div id="output-bytes"></div>
+  </div>
+
+  <!-- Info panel -->
+  <div id="info-panel" style="display:none;margin-top:1rem">
+    <div class="it" id="info-title">Select a byte</div>
+    <div class="ib" id="info-body">Click any output byte above to learn what it represents and where it came from in the input.</div>
+  </div>
+</section>
+
+<!-- ── ZIP Format ────────────────────────────────────── -->
+<section class="section" id="format">
+  <h2>ZIP File Structure</h2>
+  <p>A ZIP file is a container for multiple compressed entries. Each entry has this layout on disk:</p>
+
+  <table class="ftable">
+    <thead><tr><th>Section</th><th>Size</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>Local file header</td><td>30 + n bytes</td><td>Signature <code>PK\x03\x04</code>, filename, compression method, CRC-32, uncompressed &amp; compressed sizes</td></tr>
+      <tr><td>File data</td><td>variable</td><td>DEFLATE-compressed content — this is what the simulator shows</td></tr>
+      <tr><td>Data descriptor</td><td>0 or 16 bytes</td><td>Optional: written when sizes are unknown at write time (streaming archives)</td></tr>
+      <tr><td colspan="3" style="text-align:center;color:#475569;font-style:italic">… repeat for each file …</td></tr>
+      <tr><td>Central directory</td><td>variable</td><td>One record per file, with filename + offset into archive. Lets you seek to any file without scanning everything.</td></tr>
+      <tr><td>End of central dir</td><td>22 + n bytes</td><td>Signature <code>PK\x05\x06</code>, entry count, offset of central directory. Always at the very end.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why is the index at the end?</h3>
+  <p>ZIP was designed for appending: you write each file's data, then write the central directory at the end. To add a file you write the new entry then rewrite the central directory. Readers find it by scanning backwards from the last 22 bytes.</p>
+
+  <h3>The "PK" magic number</h3>
+  <p>ZIP files begin with <code>PK</code> — the initials of <strong>Phil Katz</strong>, who created the format in 1989. His company PKware published the DEFLATE spec, which later became the basis for gzip, zlib, PNG image compression, and HTTP's <code>Content-Encoding: gzip</code>.</p>
+
+  <div class="note">
+    Other formats using DEFLATE: <strong>gzip</strong> (.gz) — single-file wrapper with a checksum header; <strong>zlib</strong> — compact stream format used inside PNG, HTTP, PDF; <strong>jar</strong> — ZIP with a Java manifest; <strong>docx / xlsx / pptx</strong> — ZIP archives containing XML files.
+  </div>
+</section>
+
+<div style="height:4rem"></div>
+</div><!-- /container -->
+
+<script>
+// ── LZ77 compression ────────────────────────────────────────
+// Returns an array of token objects, each tagged with input positions.
+
+function lz77(input, winSize = 255, maxLen = 32) {
+  const b = [];
+  for (let i = 0; i < input.length; i++) b.push(input.charCodeAt(i));
+
+  const tokens = [];
+  let pos = 0;
+
+  while (pos < b.length) {
+    const wStart = Math.max(0, pos - winSize);
+    let bestLen = 0, bestDist = 0;
+
+    for (let i = wStart; i < pos; i++) {
+      let len = 0;
+      while (len < maxLen && pos + len < b.length && b[i + len] === b[pos + len]) {
+        len++;
+      }
+      if (len > bestLen) { bestLen = len; bestDist = pos - i; }
+    }
+
+    if (bestLen >= 3) {
+      tokens.push({
+        type: 'backref',
+        length: bestLen, distance: bestDist,
+        inputPos: pos,  inputEnd: pos + bestLen,
+        sourcePos: pos - bestDist,
+        sourceEnd: pos - bestDist + bestLen,
+        id: tokens.length
+      });
+      pos += bestLen;
+    } else {
+      tokens.push({
+        type: 'literal',
+        byte: b[pos], char: input[pos],
+        inputPos: pos, inputEnd: pos + 1,
+        id: tokens.length
+      });
+      pos++;
+    }
+  }
+  return tokens;
+}
+
+// ── Byte encoding ────────────────────────────────────────────
+// Format:
+//   Literal:    [0x00] [value]                     = 2 bytes
+//   Back-ref:   [0xFF] [length] [dist_hi] [dist_lo] = 4 bytes
+
+function encode(tokens) {
+  const out = [];
+  let tokenStart = true;
+  for (const tok of tokens) {
+    if (tok.type === 'literal') {
+      out.push({ v: 0x00, cls: 't-flag-lit', role: 'LIT', tok, first: true });
+      out.push({ v: tok.byte, cls: 't-lit-val', role: 'val', tok, first: false });
+    } else {
+      const dHi = (tok.distance >> 8) & 0xFF;
+      const dLo =  tok.distance       & 0xFF;
+      out.push({ v: 0xFF,        cls: 't-flag-ref', role: 'REF', tok, first: true });
+      out.push({ v: tok.length,  cls: 't-ref-len',  role: 'len', tok, first: false });
+      out.push({ v: dHi,         cls: 't-ref-dst',  role: 'dHi', tok, first: false });
+      out.push({ v: dLo,         cls: 't-ref-dst',  role: 'dLo', tok, first: false });
+    }
+  }
+  return out;
+}
+
+// ── State ────────────────────────────────────────────────────
+let gTokens = [], gBytes = [], gInputSpans = [];
+
+// ── Rendering ────────────────────────────────────────────────
+
+function renderInput(input) {
+  const el = document.getElementById('input-display');
+  el.innerHTML = '';
+  gInputSpans = [];
+  for (let i = 0; i < input.length; i++) {
+    const s = document.createElement('span');
+    s.className = 'ic';
+    // show spaces as a visible glyph so they can be highlighted
+    s.textContent = input[i] === ' ' ? '·' : (input[i] === '\n' ? '↩' : input[i]);
+    s.title = `input[${i}] = ${JSON.stringify(input[i])} (0x${input.charCodeAt(i).toString(16).padStart(2,'0')})`;
+    el.appendChild(s);
+    gInputSpans.push(s);
+  }
+}
+
+function renderTokens(tokens) {
+  const el = document.getElementById('token-display');
+  el.innerHTML = '';
+  for (const tok of tokens) {
+    const s = document.createElement('span');
+    if (tok.type === 'literal') {
+      s.className = 'tok lit-tok';
+      s.innerHTML = `<span class="tlabel">lit</span>${esc(JSON.stringify(tok.char))}`;
+      s.title = `Literal 0x${tok.byte.toString(16).padStart(2,'0')} at input[${tok.inputPos}]`;
+    } else {
+      s.className = 'tok ref-tok';
+      s.innerHTML = `<span class="tlabel">&#8617;</span>len=${tok.length} d=${tok.distance}`;
+      s.title = `Copy ${tok.length} bytes from ${tok.distance} back (input[${tok.sourcePos}..${tok.sourceEnd-1}] → [${tok.inputPos}..${tok.inputEnd-1}])`;
+    }
+    s.dataset.tid = tok.id;
+    s.addEventListener('click', () => selectToken(tok.id));
+    el.appendChild(s);
+  }
+}
+
+function renderBytes(bytes) {
+  const el = document.getElementById('output-bytes');
+  el.innerHTML = '';
+  const roleLabels = { LIT:'LIT', val:'val', REF:'REF', len:'len', dHi:'dHi', dLo:'dLo' };
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    const d = document.createElement('div');
+    d.className = `bb ${b.cls}${b.first ? ' grp-start' : ''}`;
+    d.dataset.bi = i;
+    const hx = b.v.toString(16).padStart(2,'0').toUpperCase();
+    d.innerHTML = `<span class="bh">${hx}</span><span class="bl">${roleLabels[b.role]||''}</span>`;
+    d.addEventListener('click', () => selectByte(i));
+    el.appendChild(d);
+  }
+}
+
+// ── Selection ────────────────────────────────────────────────
+
+function clearHL() {
+  gInputSpans.forEach(s => s.className = 'ic');
+  document.querySelectorAll('.bb.sel').forEach(e => e.classList.remove('sel'));
+  document.querySelectorAll('.tok').forEach(e => e.classList.remove('tok-faded'));
+}
+
+function hlInput(start, end, cls) {
+  for (let i = start; i < end && i < gInputSpans.length; i++) {
+    gInputSpans[i].classList.add(cls);
+  }
+}
+
+function selectByte(i) {
+  clearHL();
+  const b = gBytes[i];
+  const tok = b.tok;
+
+  // highlight all bytes in same token
+  for (let j = 0; j < gBytes.length; j++) {
+    if (gBytes[j].tok === tok) {
+      document.querySelector(`.bb[data-bi="${j}"]`)?.classList.add('sel');
+    }
+  }
+
+  // highlight input
+  if (tok.type === 'literal') {
+    hlInput(tok.inputPos, tok.inputEnd, 'hl-lit');
+  } else {
+    hlInput(tok.sourcePos, Math.min(tok.sourceEnd, tok.inputPos), 'hl-src');  // source in window
+    hlInput(tok.inputPos, tok.inputEnd, 'hl-tgt');                            // where it lands
+    // if source and target overlap (run-length case), hl-tgt wins via later addClass
+  }
+
+  // fade other tokens
+  document.querySelectorAll('.tok').forEach(e => {
+    if (parseInt(e.dataset.tid) !== tok.id) e.classList.add('tok-faded');
+  });
+
+  // scroll the first highlighted input span into view
+  const first = gInputSpans[tok.inputPos];
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  updateInfo(b, tok);
+  document.getElementById('info-panel').style.display = 'block';
+}
+
+function selectToken(id) {
+  const idx = gBytes.findIndex(b => b.tok.id === id);
+  if (idx >= 0) selectByte(idx);
+}
+
+function updateInfo(b, tok) {
+  const title = document.getElementById('info-title');
+  const body  = document.getElementById('info-body');
+
+  if (tok.type === 'literal') {
+    title.textContent = `Byte ${b.v.toString(16).padStart(2,'0').toUpperCase()} — Literal: ${JSON.stringify(tok.char)}`;
+    const roles = { LIT: 'Flag byte <code>0x00</code>: signals "a literal follows"', val: `Value byte: the literal character <code>${esc(JSON.stringify(tok.char))}</code> (0x${tok.byte.toString(16).padStart(2,'0')})` };
+    body.innerHTML = `
+      <strong>Role:</strong> ${roles[b.role] || b.role}<br>
+      <strong>Input position:</strong> index ${tok.inputPos}<br>
+      <strong>Token cost:</strong> 2 output bytes (flag + value) for 1 input byte
+    `;
+  } else {
+    const srcChars = gInputSpans.slice(tok.sourcePos, Math.min(tok.sourceEnd, tok.inputPos))
+      .map(s => s.textContent).join('').replace(/·/g,' ');
+    const bytesSaved = tok.length - 4;
+    const roles = {
+      REF: 'Flag byte <code>0xFF</code>: signals "a back-reference follows"',
+      len: `Length byte: copy <strong>${tok.length}</strong> bytes`,
+      dHi: `Distance high byte — distance = <strong>${tok.distance}</strong> (0x${tok.distance.toString(16).padStart(4,'0').slice(0,2)})`,
+      dLo: `Distance low byte — distance = <strong>${tok.distance}</strong> (0x${tok.distance.toString(16).padStart(4,'0').slice(2)})`
+    };
+    title.textContent = `Back-reference — len=${tok.length}, dist=${tok.distance}`;
+    body.innerHTML = `
+      <strong>Role:</strong> ${roles[b.role] || b.role}<br>
+      <strong>Instruction:</strong> "go back ${tok.distance} byte${tok.distance!==1?'s':''}, copy ${tok.length} byte${tok.length!==1?'s':''}"<br>
+      <strong>Copied text:</strong> <code>${esc(JSON.stringify(srcChars))}</code><br>
+      <strong>Source:</strong> input[${tok.sourcePos}..${Math.min(tok.sourceEnd, tok.inputPos)-1}] <span style="color:#22c55e">(green)</span><br>
+      <strong>Target:</strong> input[${tok.inputPos}..${tok.inputEnd-1}] <span style="color:#f59e0b">(amber)</span><br>
+      <strong>Savings:</strong> ${tok.length} raw bytes → 4 output bytes
+        ${bytesSaved > 0 ? `(<strong style="color:#22c55e">saves ${bytesSaved} byte${bytesSaved!==1?'s':''}</strong>)` :
+          bytesSaved === 0 ? '(break-even)' : `(<span style="color:#f87171">+${-bytesSaved} overhead for short match</span>)`}
+    `;
+  }
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Main ─────────────────────────────────────────────────────
+
+function runSim() {
+  const input = document.getElementById('inp').value;
+  if (!input) return;
+
+  clearHL();
+
+  gTokens = lz77(input);
+  gBytes  = encode(gTokens);
+
+  renderInput(input);
+  renderTokens(gTokens);
+  renderBytes(gBytes);
+
+  const refs    = gTokens.filter(t => t.type === 'backref');
+  const saved   = refs.reduce((acc, t) => acc + (t.length - 4), 0);
+
+  document.getElementById('s-in').textContent   = input.length;
+  document.getElementById('s-out').textContent  = gBytes.length;
+  document.getElementById('s-refs').textContent = refs.length;
+  document.getElementById('s-saved').textContent = Math.max(0, saved);
+
+  ['stats','leg','tok-sec','inp-sec','out-sec'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === 'stats' || id === 'leg' ? 'flex' : 'block';
+  });
+
+  const info = document.getElementById('info-panel');
+  info.style.display = 'block';
+  document.getElementById('info-title').textContent = 'Tap any output byte';
+  document.getElementById('info-body').innerHTML =
+    `Compressed ${input.length} input bytes to ${gBytes.length} output bytes using our simplified format.
+    Found <strong>${refs.length} back-reference${refs.length!==1?'s':''}</strong>.
+    ${saved > 0 ? `Back-references saved <strong>${saved} byte${saved!==1?'s':''}</strong> vs encoding those runs as literals.` : ''}
+    <br><br>The output is larger than input here because our format uses 2 bytes per literal (flag + value) instead of 1.
+    Real DEFLATE adds Huffman coding on top, making literals cost ≈8 bits — the same as raw — so the net result is always ≤ the original size.`;
+}
+
+window.addEventListener('load', runSim);
+</script>
+</body>
+</html>
