@@ -304,20 +304,16 @@ class CameraViewController: UIViewController {
                 appendStats("✗ Camera permission denied")
             }
 
-            lkLog("requesting mic permission")
-            let audioGranted = await AVCaptureDevice.requestAccess(for: .audio)
-            lkLog("mic permission: \(audioGranted ? "granted" : "denied")")
-            if audioGranted {
-                let aTrack = LocalAudioTrack.createTrack(name: "mic")
-                self.audioTrack = aTrack
-                lkLog("publishing audio track")
-                try await room.localParticipant.publish(audioTrack: aTrack)
-                lkLog("audio track published")
-                await MainActor.run { muteButton.isHidden = false }
-                appendStats("✓ Mic published")
-            } else {
-                appendStats("✗ Mic permission denied")
-            }
+            // Microphone support is off for now: the mic is not published, and
+            // mic permission is never requested. The session therefore stays on
+            // `.playback` — see AudioSessionManager.
+            //
+            // `audioTrack` stays nil, which the mute plumbing already handles:
+            // the Mute button stays hidden, and both `toggleMute()` and the
+            // remote `setMute` message no-op. To re-enable, publish a
+            // LocalAudioTrack here and give AudioSessionManager `.playAndRecord`
+            // back.
+            appendStats("• Mic disabled")
 
             startStatsTimer()
 

@@ -16,19 +16,23 @@ import LiveKit
 ///    `setActive(false)` on the shared session, which cuts the audio out from
 ///    under whatever `AVPlayer` happens to be playing.
 ///
-/// Since the camera page auto-connects and publishes the mic at launch, case 1
-/// is the app's steady state — which is why videos lost their sound as soon as
-/// LiveKit landed.
+/// Case 1 was the app's steady state while the camera page published the mic at
+/// launch — which is why videos lost their sound as soon as LiveKit landed.
 ///
 /// So LiveKit's automatic configuration is turned off and the session is managed
-/// here instead: mode stays `.default` so playback uses the media volume and the
-/// main speaker, and the session is never deactivated.
+/// here instead. This still matters with the mic disabled: the SDK's engine also
+/// runs to play *remote* audio, and would reconfigure and deactivate the session
+/// underneath a playing `AVPlayer`.
 ///
-/// The category is set once at launch and never changed. `.playAndRecord` is
-/// used whether or not the mic happens to be capturing: the camera page
-/// auto-connects and publishes the mic at launch, so recording is the steady
-/// state anyway, and a session that never changes category can't race the
-/// WebRTC engine's start-up.
+/// The category is set once at launch and never changed. It is plain `.playback`:
+/// microphone support is off (`CameraViewController` publishes no audio track),
+/// and nothing else here records. `.playback` is also what keeps the hardware
+/// volume buttons on the media volume — under `.playAndRecord` they address a
+/// different slider, which made playback loud and seemingly unadjustable.
+///
+/// Re-enabling the mic means going back to `.playAndRecord` with mode `.default`
+/// and `.defaultToSpeaker` — mode `.default` rather than `.videoChat` being the
+/// part that keeps playback off the call volume.
 final class AudioSessionManager: NSObject {
 
     static let shared = AudioSessionManager()
@@ -78,20 +82,16 @@ final class AudioSessionManager: NSObject {
     private func applyLocked() {
         let session = AVAudioSession.sharedInstance()
         do {
-            // Mode `.default` rather than `.videoChat`/`.voiceChat`: recording
-            // still works, but playback keeps the media volume instead of the
-            // call volume. `.defaultToSpeaker` keeps it off the earpiece.
-            try session.setCategory(.playAndRecord,
+            // Nothing records, so plain `.playback` with mode `.default`: media
+            // volume, main speaker, and the hardware volume buttons control the
+            // volume the video is actually using.
+            try session.setCategory(.playback,
                                     mode: .default,
-                                    options: [.defaultToSpeaker, .allowBluetoothA2DP, .allowAirPlay])
+                                    options: [.allowBluetoothA2DP, .allowAirPlay])
             // Never deactivated — a video may be playing at any point.
             try session.setActive(true)
         } catch {
             print("[Audio] session config failed: \(error)")
-            // Video sound matters more than the mic, so fall back to playback
-            // only — e.g. if mic access is denied and `.playAndRecord` is refused.
-            try? session.setCategory(.playback, mode: .default, options: [])
-            try? session.setActive(true)
         }
     }
 
