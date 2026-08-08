@@ -20,6 +20,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         CrashReporter.setup()
+        // Must happen before any LiveKit room connects, otherwise the SDK
+        // configures the audio session first and video playback goes silent.
+        AudioSessionManager.shared.start()
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.makeKeyAndVisible()
         let rootViewController = StartViewController()

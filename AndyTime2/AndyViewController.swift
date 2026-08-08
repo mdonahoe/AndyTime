@@ -21,6 +21,15 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     // Boundary VC used as insertion anchor for RemoteCameraViewControllers
     private var greenViewController: UIViewController!
 
+    // Kept around so they can be added/removed as Guided Access toggles.
+    // The camera VC keeps streaming either way — only its page is hidden.
+    private let adminViewController = AdminViewController()
+    private let cameraViewController = CameraViewController()
+
+    // Stays visible under Guided Access. Reused across rebuilds so it isn't
+    // recreated (and doesn't reopen its capture session) on a channel reload.
+    private let mirrorViewController = MirrorViewController()
+
     // App-wide playback monitoring
     private var playbackCheckTimer: Timer?
     private var stallObserver: NSObjectProtocol?
@@ -60,6 +69,120 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             name: LiveKitManager.participantDisconnectedNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleGuidedAccessStatusChange),
+            name: UIAccessibility.guidedAccessStatusDidChangeNotification,
+            object: nil
+        )
+    }
+
+    // MARK: - Guided Access
+
+    /// `true` while the device is locked into this app — either Guided Access
+    /// (triple-click) or MDM Single App Mode, both of which report through the
+    /// same flag.
+    private var isGuidedAccessActive: Bool {
+        UIAccessibility.isGuidedAccessEnabled
+    }
+
+    /// Pages hidden while the device is locked into the app, so whoever is
+    /// locked in can't reach the playback controls or drop the camera stream.
+    /// Listed in the order they sit at the front of the page list.
+    private var restrictedViewControllers: [UIViewController] {
+        [adminViewController, cameraViewController]
+    }
+
+    /// The page to open on, Guided Access or not: the green placeholder. It is
+    /// always present and never restricted, and it puts the app in the same
+    /// known spot every launch rather than on whichever page happens to be
+    /// visible.
+    private var landingViewController: UIViewController? {
+        greenViewController ?? fallbackViewController
+    }
+
+    /// Where to send the user when the page they are on gets hidden. Green for
+    /// the same reason, falling back to any unrestricted page if it somehow
+    /// isn't in the list yet.
+    private var fallbackViewController: UIViewController? {
+        greenViewController
+            ?? viewControllers.first(where: { !restrictedViewControllers.contains($0) })
+    }
+
+    @objc private func handleGuidedAccessStatusChange() {
+        // Posted on the main thread by UIKit.
+        updateRestrictedPageVisibility()
+    }
+
+    /// Adds or removes the restricted pages in place. Deliberately not a full
+    /// `customizeViewControllers()` rebuild — Guided Access can be toggled at
+    /// any time, including while a video is playing.
+    private func updateRestrictedPageVisibility() {
+        if isGuidedAccessActive {
+            for vc in restrictedViewControllers {
+                guard viewControllers.contains(vc) else { continue }
+                // Page away first if this one is on screen, so the page view
+                // controller is never left showing a controller that's no longer
+                // in the list (its neighbours would come back nil and paging
+                // would dead-end).
+                if pageViewController.viewControllers?.first === vc {
+                    guard let fallback = fallbackViewController else { continue }
+                    // The transition is asynchronous, so the page can only leave
+                    // the list once it has finished. Removing it here would
+                    // mutate the array from under an in-flight transition, and
+                    // the data source would start returning nil for the page
+                    // being animated away from.
+                    show(page: fallback, animated: true) { [weak self] in
+                        self?.removeFromPageList(vc)
+                    }
+                } else {
+                    removeFromPageList(vc)
+                }
+            }
+        } else {
+            // Restore them at the front, in order, around whichever are already there.
+            var insertIndex = 0
+            for vc in restrictedViewControllers {
+                if let existing = viewControllers.firstIndex(of: vc) {
+                    insertIndex = existing + 1
+                } else {
+                    viewControllers.insert(vc, at: insertIndex)
+                    insertIndex += 1
+                }
+            }
+        }
+    }
+
+    /// Takes a page out of the list. Looked up at call time rather than by a
+    /// captured index, since an earlier removal in the same pass — or an
+    /// animated one completing later — will have shifted it.
+    private func removeFromPageList(_ vc: UIViewController) {
+        guard let index = viewControllers.firstIndex(of: vc) else { return }
+        viewControllers.remove(at: index)
+    }
+
+    /// Moves the page view controller to `page`, keeping `currentVideoView` in
+    /// step — `didFinishAnimating` only fires for user-driven swipes.
+    /// Unlike `didFinishAnimating` this doesn't bump the outgoing channel's
+    /// offset — the user didn't swipe away, the page was moved out from under them.
+    ///
+    /// `completion` runs on the main thread once the transition has finished,
+    /// for callers that need to mutate the page list afterwards.
+    private func show(page: UIViewController, animated: Bool, completion: (() -> Void)? = nil) {
+        let incoming = page as? VideoViewController
+        if let outgoing = currentVideoView, outgoing !== incoming {
+            outgoing.stopVideo()
+        }
+
+        pageViewController.setViewControllers([page], direction: .forward, animated: animated) { _ in
+            completion?()
+        }
+
+        currentVideoView = incoming
+        if let incoming {
+            PlaybackManager.shared.setChannelIndex(index: incoming.channelIndex)
+            incoming.resumePlayback()
+        }
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -103,10 +226,14 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             }
         }
 
-        // Start on CameraViewController
-        let initialVC = viewControllers.first { $0 is CameraViewController } ?? viewControllers.first
+        // Always start on the green placeholder, Guided Access or not.
+        let initialVC = landingViewController ?? viewControllers.first
         if let initialVC {
             pageViewController.setViewControllers([initialVC], direction: .forward, animated: false, completion: nil)
+            // viewDidAppear starts playback; this just keeps the playback
+            // watchdog's reference in step, since didFinishAnimating only
+            // fires for user-driven swipes.
+            currentVideoView = initialVC as? VideoViewController
         }
 
         addChild(pageViewController)
@@ -123,9 +250,11 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     }
 
     private func customizeViewControllers() {
-        // Camera — landing page
-        let cameraViewController = CameraViewController()
-        viewControllers.append(cameraViewController)
+        // Camera — landing page. Hidden while locked into the app, but it still
+        // connects and publishes either way; only the page goes away.
+        if !isGuidedAccessActive {
+            viewControllers.append(cameraViewController)
+        }
         cameraViewController.autoConnect()
 
         // Boundary: RemoteCameraViewControllers are inserted just before this
@@ -142,12 +271,16 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
 
         viewControllers.append(contentsOf: self.extraViews)
 
+        // Mirror — last page before the red one, and never hidden.
+        viewControllers.append(mirrorViewController)
+
         let redViewController = UIViewController()
         redViewController.view.backgroundColor = .red
         viewControllers.append(redViewController)
 
-        let adminViewController = AdminViewController()
-        viewControllers.insert(adminViewController, at: 0)
+        if !isGuidedAccessActive {
+            viewControllers.insert(adminViewController, at: 0)
+        }
 
         // Re-add any currently connected remote participants (e.g. after channels reload)
         for participant in LiveKitManager.shared.room.remoteParticipants.values {
@@ -313,7 +446,12 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         print("handleChannelsLoaded")
         viewControllers.removeAll()
         customizeViewControllers()
-        setupPageViewController()
+        // Reuse the existing page view controller rather than building a second
+        // one on top of it — the admin and camera pages are reused instances and
+        // can only be parented by one page view controller at a time.
+        if let landing = landingViewController ?? viewControllers.first {
+            show(page: landing, animated: false)
+        }
         print("done loading channels")
     }
 }

@@ -22,6 +22,8 @@
 		CA000000000002000000BB01 /* LiveKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000002000000BB00 /* LiveKitManager.swift */; };
 		CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000003000000CC00 /* RemoteCameraViewController.swift */; };
 		CA000000000004000000DD01 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000004000000DD00 /* Secrets.swift */; };
+		CA000000000005000000EE01 /* AudioSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000007000000AA00 /* AudioSessionManager.swift */; };
+		CA000000000006000000FF01 /* MirrorViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA000000000006000000FF00 /* MirrorViewController.swift */; };
 
 /* End PBXBuildFile section */
 
@@ -53,6 +55,8 @@
 		CA000000000002000000BB00 /* LiveKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveKitManager.swift; sourceTree = "<group>"; };
 		CA000000000003000000CC00 /* RemoteCameraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteCameraViewController.swift; sourceTree = "<group>"; };
 		CA000000000004000000DD00 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
+		CA000000000007000000AA00 /* AudioSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionManager.swift; sourceTree = "<group>"; };
+		CA000000000006000000FF00 /* MirrorViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirrorViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -108,6 +112,8 @@
 				CA000000000002000000BB00 /* LiveKitManager.swift */,
 				CA000000000003000000CC00 /* RemoteCameraViewController.swift */,
 				CA000000000004000000DD00 /* Secrets.swift */,
+				CA000000000007000000AA00 /* AudioSessionManager.swift */,
+				CA000000000006000000FF00 /* MirrorViewController.swift */,
 				B8F00002AAAA000100000002 /* InfoViewController.swift */,
 				B87008E22D11C5A500C83F1D /* PlaybackManager.swift */,
 				B812B1AD2A511D99000126B1 /* StartViewController.swift */,
@@ -261,6 +267,8 @@
 				CA000000000002000000BB01 /* LiveKitManager.swift in Sources */,
 				CA000000000003000000CC01 /* RemoteCameraViewController.swift in Sources */,
 				CA000000000004000000DD01 /* Secrets.swift in Sources */,
+				CA000000000005000000EE01 /* AudioSessionManager.swift in Sources */,
+				CA000000000006000000FF01 /* MirrorViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

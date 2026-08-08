@@ -77,6 +77,13 @@ class CameraViewController: UIViewController {
     private var cameraTrack: LocalVideoTrack?
     private var audioTrack: LocalAudioTrack?
 
+    /// Set for as long as a connect attempt is running. `room.connectionState`
+    /// alone is not enough to keep connects from overlapping: it stays
+    /// `.disconnected` through token generation and up to the first `await`
+    /// inside `room.connect`, so two calls arriving in that window both get
+    /// past the state check and both connect. Main thread only.
+    private var isConnectInFlight = false
+
     private var cameraOptions: [CameraOption] = []
     private var currentCameraIndex = 0
 
@@ -211,14 +218,39 @@ class CameraViewController: UIViewController {
     // MARK: - Connection
 
     /// Forces view load and connects without user interaction.
+    ///
+    /// Safe to call more than once — the page list is rebuilt when channels
+    /// finish loading, which calls this again on the same instance while the
+    /// first attempt is often still in flight.
     func autoConnect() {
         _ = view
         guard room.connectionState == .disconnected else {
             lkLog("autoConnect skipped — already \(room.connectionState)")
             return
         }
+        guard !isConnectInFlight else {
+            lkLog("autoConnect skipped — connect already in flight")
+            return
+        }
         lkLog("autoConnect starting")
-        Task { await connect() }
+        beginConnect()
+    }
+
+    /// Starts a connect attempt, at most one at a time. Main thread only.
+    ///
+    /// Two overlapping attempts share one `Room`, so they negotiate over each
+    /// other — the signalling fails with mismatched m-line ordering and the room
+    /// drops into a reconnect loop — and they publish the camera twice, which
+    /// puts two capturers on the same `AVCaptureDevice`. The second one loses the
+    /// device (`FigCaptureSourceRemote` err -17281) and the published track then
+    /// never produces a frame, so the preview freezes.
+    private func beginConnect() {
+        guard !isConnectInFlight else { return }
+        isConnectInFlight = true
+        Task { [weak self] in
+            await self?.connect()
+            await MainActor.run { self?.isConnectInFlight = false }
+        }
     }
 
     @objc private func toggleConnection() {
@@ -226,7 +258,7 @@ class CameraViewController: UIViewController {
         case .connected, .reconnecting:
             Task { await disconnect() }
         default:
-            Task { await connect() }
+            beginConnect()
         }
     }
 
@@ -304,20 +336,16 @@ class CameraViewController: UIViewController {
                 appendStats("✗ Camera permission denied")
             }
 
-            lkLog("requesting mic permission")
-            let audioGranted = await AVCaptureDevice.requestAccess(for: .audio)
-            lkLog("mic permission: \(audioGranted ? "granted" : "denied")")
-            if audioGranted {
-                let aTrack = LocalAudioTrack.createTrack(name: "mic")
-                self.audioTrack = aTrack
-                lkLog("publishing audio track")
-                try await room.localParticipant.publish(audioTrack: aTrack)
-                lkLog("audio track published")
-                await MainActor.run { muteButton.isHidden = false }
-                appendStats("✓ Mic published")
-            } else {
-                appendStats("✗ Mic permission denied")
-            }
+            // Microphone support is off for now: the mic is not published, and
+            // mic permission is never requested. The session therefore stays on
+            // `.playback` — see AudioSessionManager.
+            //
+            // `audioTrack` stays nil, which the mute plumbing already handles:
+            // the Mute button stays hidden, and both `toggleMute()` and the
+            // remote `setMute` message no-op. To re-enable, publish a
+            // LocalAudioTrack here and give AudioSessionManager `.playAndRecord`
+            // back.
+            appendStats("• Mic disabled")
 
             startStatsTimer()
 
