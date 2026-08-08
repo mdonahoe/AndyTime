@@ -21,8 +21,10 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     // Boundary VC used as insertion anchor for RemoteCameraViewControllers
     private var greenViewController: UIViewController!
 
-    // Kept around so it can be added/removed as Guided Access toggles
+    // Kept around so they can be added/removed as Guided Access toggles.
+    // The camera VC keeps streaming either way — only its page is hidden.
     private let adminViewController = AdminViewController()
+    private let cameraViewController = CameraViewController()
 
     // App-wide playback monitoring
     private var playbackCheckTimer: Timer?
@@ -75,39 +77,84 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
 
     /// `true` while the device is locked into this app — either Guided Access
     /// (triple-click) or MDM Single App Mode, both of which report through the
-    /// same flag. The admin page is hidden in that state so whoever is locked
-    /// in can't reach the playback controls.
+    /// same flag.
     private var isGuidedAccessActive: Bool {
         UIAccessibility.isGuidedAccessEnabled
     }
 
-    @objc private func handleGuidedAccessStatusChange() {
-        // Posted on the main thread by UIKit.
-        updateAdminPageVisibility()
+    /// Pages hidden while the device is locked into the app, so whoever is
+    /// locked in can't reach the playback controls or drop the camera stream.
+    /// Listed in the order they sit at the front of the page list.
+    private var restrictedViewControllers: [UIViewController] {
+        [adminViewController, cameraViewController]
     }
 
-    /// Adds or removes the admin page in place. Deliberately not a full
+    /// The page to open on: the camera page when it's available, otherwise the
+    /// same page a locked-in user falls back to.
+    private var landingViewController: UIViewController? {
+        if viewControllers.contains(cameraViewController) { return cameraViewController }
+        return fallbackViewController
+    }
+
+    /// First page that stays visible while locked in — a video where possible,
+    /// so hiding a page doesn't strand the user on a blank placeholder.
+    private var fallbackViewController: UIViewController? {
+        viewControllers.first(where: { $0 is VideoViewController })
+            ?? viewControllers.first(where: { !restrictedViewControllers.contains($0) })
+    }
+
+    @objc private func handleGuidedAccessStatusChange() {
+        // Posted on the main thread by UIKit.
+        updateRestrictedPageVisibility()
+    }
+
+    /// Adds or removes the restricted pages in place. Deliberately not a full
     /// `customizeViewControllers()` rebuild — Guided Access can be toggled at
     /// any time, including while a video is playing.
-    private func updateAdminPageVisibility() {
-        let existingIndex = viewControllers.firstIndex(of: adminViewController)
-
+    private func updateRestrictedPageVisibility() {
         if isGuidedAccessActive {
-            guard let index = existingIndex else { return }
-            // Page away first if admin is on screen, so the page view controller
-            // is never left showing a controller that's no longer in the list
-            // (its neighbours would come back nil and paging would dead-end).
-            if pageViewController.viewControllers?.first === adminViewController {
-                guard index + 1 < viewControllers.count else { return }
-                pageViewController.setViewControllers([viewControllers[index + 1]],
-                                                     direction: .forward,
-                                                     animated: true,
-                                                     completion: nil)
+            for vc in restrictedViewControllers {
+                guard let index = viewControllers.firstIndex(of: vc) else { continue }
+                // Page away first if this one is on screen, so the page view
+                // controller is never left showing a controller that's no longer
+                // in the list (its neighbours would come back nil and paging
+                // would dead-end).
+                if pageViewController.viewControllers?.first === vc {
+                    guard let fallback = fallbackViewController else { continue }
+                    show(page: fallback, animated: true)
+                }
+                viewControllers.remove(at: index)
             }
-            viewControllers.remove(at: index)
         } else {
-            guard existingIndex == nil else { return }
-            viewControllers.insert(adminViewController, at: 0)
+            // Restore them at the front, in order, around whichever are already there.
+            var insertIndex = 0
+            for vc in restrictedViewControllers {
+                if let existing = viewControllers.firstIndex(of: vc) {
+                    insertIndex = existing + 1
+                } else {
+                    viewControllers.insert(vc, at: insertIndex)
+                    insertIndex += 1
+                }
+            }
+        }
+    }
+
+    /// Moves the page view controller to `page`, keeping `currentVideoView` in
+    /// step — `didFinishAnimating` only fires for user-driven swipes.
+    /// Unlike `didFinishAnimating` this doesn't bump the outgoing channel's
+    /// offset — the user didn't swipe away, the page was moved out from under them.
+    private func show(page: UIViewController, animated: Bool) {
+        let incoming = page as? VideoViewController
+        if let outgoing = currentVideoView, outgoing !== incoming {
+            outgoing.stopVideo()
+        }
+
+        pageViewController.setViewControllers([page], direction: .forward, animated: animated, completion: nil)
+
+        currentVideoView = incoming
+        if let incoming {
+            PlaybackManager.shared.setChannelIndex(index: incoming.channelIndex)
+            incoming.resumePlayback()
         }
     }
 
@@ -152,10 +199,14 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             }
         }
 
-        // Start on CameraViewController
-        let initialVC = viewControllers.first { $0 is CameraViewController } ?? viewControllers.first
+        // Start on CameraViewController, or a video page when it's hidden
+        let initialVC = landingViewController ?? viewControllers.first
         if let initialVC {
             pageViewController.setViewControllers([initialVC], direction: .forward, animated: false, completion: nil)
+            // viewDidAppear starts playback; this just keeps the playback
+            // watchdog's reference in step, since didFinishAnimating only
+            // fires for user-driven swipes.
+            currentVideoView = initialVC as? VideoViewController
         }
 
         addChild(pageViewController)
@@ -172,9 +223,11 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     }
 
     private func customizeViewControllers() {
-        // Camera — landing page
-        let cameraViewController = CameraViewController()
-        viewControllers.append(cameraViewController)
+        // Camera — landing page. Hidden while locked into the app, but it still
+        // connects and publishes either way; only the page goes away.
+        if !isGuidedAccessActive {
+            viewControllers.append(cameraViewController)
+        }
         cameraViewController.autoConnect()
 
         // Boundary: RemoteCameraViewControllers are inserted just before this
@@ -363,7 +416,12 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         print("handleChannelsLoaded")
         viewControllers.removeAll()
         customizeViewControllers()
-        setupPageViewController()
+        // Reuse the existing page view controller rather than building a second
+        // one on top of it — the admin and camera pages are reused instances and
+        // can only be parented by one page view controller at a time.
+        if let landing = landingViewController ?? viewControllers.first {
+            show(page: landing, animated: false)
+        }
         print("done loading channels")
     }
 }
