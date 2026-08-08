@@ -26,6 +26,10 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     private let adminViewController = AdminViewController()
     private let cameraViewController = CameraViewController()
 
+    // Stays visible under Guided Access. Reused across rebuilds so it isn't
+    // recreated (and doesn't reopen its capture session) on a channel reload.
+    private let mirrorViewController = MirrorViewController()
+
     // App-wide playback monitoring
     private var playbackCheckTimer: Timer?
     private var stallObserver: NSObjectProtocol?
@@ -257,6 +261,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         greenViewController = UIViewController()
         greenViewController.view.backgroundColor = .green
         viewControllers.append(greenViewController)
+
+        // Mirror — one swipe left of the videos, and never hidden.
+        viewControllers.append(mirrorViewController)
 
         let channels = PlaybackManager.shared.getChannels()
         print("vc channels = \(channels)")
