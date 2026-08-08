@@ -89,17 +89,19 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         [adminViewController, cameraViewController]
     }
 
-    /// The page to open on: the camera page when it's available, otherwise the
-    /// same page a locked-in user falls back to.
+    /// The page to open on, Guided Access or not: the green placeholder. It is
+    /// always present and never restricted, and it puts the app in the same
+    /// known spot every launch rather than on whichever page happens to be
+    /// visible.
     private var landingViewController: UIViewController? {
-        if viewControllers.contains(cameraViewController) { return cameraViewController }
-        return fallbackViewController
+        greenViewController ?? fallbackViewController
     }
 
-    /// First page that stays visible while locked in — a video where possible,
-    /// so hiding a page doesn't strand the user on a blank placeholder.
+    /// Where to send the user when the page they are on gets hidden. Green for
+    /// the same reason, falling back to any unrestricted page if it somehow
+    /// isn't in the list yet.
     private var fallbackViewController: UIViewController? {
-        viewControllers.first(where: { $0 is VideoViewController })
+        greenViewController
             ?? viewControllers.first(where: { !restrictedViewControllers.contains($0) })
     }
 
@@ -199,7 +201,7 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             }
         }
 
-        // Start on CameraViewController, or a video page when it's hidden
+        // Always start on the green placeholder, Guided Access or not.
         let initialVC = landingViewController ?? viewControllers.first
         if let initialVC {
             pageViewController.setViewControllers([initialVC], direction: .forward, animated: false, completion: nil)
