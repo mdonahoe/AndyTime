@@ -116,16 +116,24 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     private func updateRestrictedPageVisibility() {
         if isGuidedAccessActive {
             for vc in restrictedViewControllers {
-                guard let index = viewControllers.firstIndex(of: vc) else { continue }
+                guard viewControllers.contains(vc) else { continue }
                 // Page away first if this one is on screen, so the page view
                 // controller is never left showing a controller that's no longer
                 // in the list (its neighbours would come back nil and paging
                 // would dead-end).
                 if pageViewController.viewControllers?.first === vc {
                     guard let fallback = fallbackViewController else { continue }
-                    show(page: fallback, animated: true)
+                    // The transition is asynchronous, so the page can only leave
+                    // the list once it has finished. Removing it here would
+                    // mutate the array from under an in-flight transition, and
+                    // the data source would start returning nil for the page
+                    // being animated away from.
+                    show(page: fallback, animated: true) { [weak self] in
+                        self?.removeFromPageList(vc)
+                    }
+                } else {
+                    removeFromPageList(vc)
                 }
-                viewControllers.remove(at: index)
             }
         } else {
             // Restore them at the front, in order, around whichever are already there.
@@ -141,17 +149,30 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         }
     }
 
+    /// Takes a page out of the list. Looked up at call time rather than by a
+    /// captured index, since an earlier removal in the same pass — or an
+    /// animated one completing later — will have shifted it.
+    private func removeFromPageList(_ vc: UIViewController) {
+        guard let index = viewControllers.firstIndex(of: vc) else { return }
+        viewControllers.remove(at: index)
+    }
+
     /// Moves the page view controller to `page`, keeping `currentVideoView` in
     /// step — `didFinishAnimating` only fires for user-driven swipes.
     /// Unlike `didFinishAnimating` this doesn't bump the outgoing channel's
     /// offset — the user didn't swipe away, the page was moved out from under them.
-    private func show(page: UIViewController, animated: Bool) {
+    ///
+    /// `completion` runs on the main thread once the transition has finished,
+    /// for callers that need to mutate the page list afterwards.
+    private func show(page: UIViewController, animated: Bool, completion: (() -> Void)? = nil) {
         let incoming = page as? VideoViewController
         if let outgoing = currentVideoView, outgoing !== incoming {
             outgoing.stopVideo()
         }
 
-        pageViewController.setViewControllers([page], direction: .forward, animated: animated, completion: nil)
+        pageViewController.setViewControllers([page], direction: .forward, animated: animated) { _ in
+            completion?()
+        }
 
         currentVideoView = incoming
         if let incoming {
