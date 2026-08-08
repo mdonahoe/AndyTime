@@ -196,9 +196,9 @@ class MirrorViewController: UIViewController {
                     guard let self else { return }
                     if granted {
                         // Re-check the source: LiveKit may have published while we asked.
-                        selectSource()
+                        self.selectSource()
                     } else {
-                        setStatus("Camera access is off")
+                        self.setStatus("Camera access is off")
                     }
                 }
             }

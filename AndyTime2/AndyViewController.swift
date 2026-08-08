@@ -262,9 +262,6 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         greenViewController.view.backgroundColor = .green
         viewControllers.append(greenViewController)
 
-        // Mirror — one swipe left of the videos, and never hidden.
-        viewControllers.append(mirrorViewController)
-
         let channels = PlaybackManager.shared.getChannels()
         print("vc channels = \(channels)")
         for (channelIndex, name) in channels.enumerated() {
@@ -273,6 +270,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         }
 
         viewControllers.append(contentsOf: self.extraViews)
+
+        // Mirror — last page before the red one, and never hidden.
+        viewControllers.append(mirrorViewController)
 
         let redViewController = UIViewController()
         redViewController.view.backgroundColor = .red
