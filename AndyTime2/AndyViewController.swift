@@ -21,6 +21,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
     // Boundary VC used as insertion anchor for RemoteCameraViewControllers
     private var greenViewController: UIViewController!
 
+    // Kept around so it can be added/removed as Guided Access toggles
+    private let adminViewController = AdminViewController()
+
     // App-wide playback monitoring
     private var playbackCheckTimer: Timer?
     private var stallObserver: NSObjectProtocol?
@@ -60,6 +63,52 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
             name: LiveKitManager.participantDisconnectedNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleGuidedAccessStatusChange),
+            name: UIAccessibility.guidedAccessStatusDidChangeNotification,
+            object: nil
+        )
+    }
+
+    // MARK: - Guided Access
+
+    /// `true` while the device is locked into this app — either Guided Access
+    /// (triple-click) or MDM Single App Mode, both of which report through the
+    /// same flag. The admin page is hidden in that state so whoever is locked
+    /// in can't reach the playback controls.
+    private var isGuidedAccessActive: Bool {
+        UIAccessibility.isGuidedAccessEnabled
+    }
+
+    @objc private func handleGuidedAccessStatusChange() {
+        // Posted on the main thread by UIKit.
+        updateAdminPageVisibility()
+    }
+
+    /// Adds or removes the admin page in place. Deliberately not a full
+    /// `customizeViewControllers()` rebuild — Guided Access can be toggled at
+    /// any time, including while a video is playing.
+    private func updateAdminPageVisibility() {
+        let existingIndex = viewControllers.firstIndex(of: adminViewController)
+
+        if isGuidedAccessActive {
+            guard let index = existingIndex else { return }
+            // Page away first if admin is on screen, so the page view controller
+            // is never left showing a controller that's no longer in the list
+            // (its neighbours would come back nil and paging would dead-end).
+            if pageViewController.viewControllers?.first === adminViewController {
+                guard index + 1 < viewControllers.count else { return }
+                pageViewController.setViewControllers([viewControllers[index + 1]],
+                                                     direction: .forward,
+                                                     animated: true,
+                                                     completion: nil)
+            }
+            viewControllers.remove(at: index)
+        } else {
+            guard existingIndex == nil else { return }
+            viewControllers.insert(adminViewController, at: 0)
+        }
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
@@ -146,8 +195,9 @@ class AndyViewController: UIViewController, UIPageViewControllerDataSource, UIPa
         redViewController.view.backgroundColor = .red
         viewControllers.append(redViewController)
 
-        let adminViewController = AdminViewController()
-        viewControllers.insert(adminViewController, at: 0)
+        if !isGuidedAccessActive {
+            viewControllers.insert(adminViewController, at: 0)
+        }
 
         // Re-add any currently connected remote participants (e.g. after channels reload)
         for participant in LiveKitManager.shared.room.remoteParticipants.values {
