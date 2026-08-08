@@ -23,14 +23,16 @@ import LiveKit
 /// So LiveKit's automatic configuration is turned off and the session is managed
 /// here instead: mode stays `.default` so playback uses the media volume and the
 /// main speaker, and the session is never deactivated.
+///
+/// The category is set once at launch and never changed. `.playAndRecord` is
+/// used whether or not the mic happens to be capturing: the camera page
+/// auto-connects and publishes the mic at launch, so recording is the steady
+/// state anyway, and a session that never changes category can't race the
+/// WebRTC engine's start-up.
 final class AudioSessionManager: NSObject {
 
     static let shared = AudioSessionManager()
 
-    /// `true` while the local mic is being captured, which is the only time
-    /// the session needs `.playAndRecord`. Guarded by `lock` — the LiveKit
-    /// connect flow runs off the main thread.
-    private var isMicrophoneActive = false
     private let lock = NSLock()
 
     private override init() {
@@ -39,6 +41,9 @@ final class AudioSessionManager: NSObject {
 
     /// Call once at launch, before connecting to a LiveKit room.
     func start() {
+        // `AudioManager` is LiveKit's (client-sdk-swift), not AVFoundation's —
+        // it is the SDK's wrapper around the shared AVAudioSession.
+        //
         // Take ownership of the session away from the SDK. Both flags matter:
         // the first stops it reconfiguring the category, the second stops it
         // deactivating the session when the engine winds down.
@@ -61,19 +66,6 @@ final class AudioSessionManager: NSObject {
         apply()
     }
 
-    /// Mic capture needs `.playAndRecord`; everything else sounds better under
-    /// plain `.playback`. `CameraViewController` calls this around publishing.
-    ///
-    /// Applies synchronously so the category is in place before the WebRTC
-    /// engine starts capturing.
-    func setMicrophoneActive(_ active: Bool) {
-        lock.lock()
-        defer { lock.unlock() }
-        guard active != isMicrophoneActive else { return }
-        isMicrophoneActive = active
-        applyLocked()
-    }
-
     // MARK: - Private
 
     private func apply() {
@@ -86,21 +78,18 @@ final class AudioSessionManager: NSObject {
     private func applyLocked() {
         let session = AVAudioSession.sharedInstance()
         do {
-            if isMicrophoneActive {
-                // Mode `.default` rather than `.videoChat`/`.voiceChat`: recording
-                // still works, but playback keeps the media volume instead of the
-                // call volume. `.defaultToSpeaker` keeps it off the earpiece.
-                try session.setCategory(.playAndRecord,
-                                        mode: .default,
-                                        options: [.defaultToSpeaker, .allowBluetoothA2DP, .allowAirPlay])
-            } else {
-                try session.setCategory(.playback, mode: .default, options: [])
-            }
+            // Mode `.default` rather than `.videoChat`/`.voiceChat`: recording
+            // still works, but playback keeps the media volume instead of the
+            // call volume. `.defaultToSpeaker` keeps it off the earpiece.
+            try session.setCategory(.playAndRecord,
+                                    mode: .default,
+                                    options: [.defaultToSpeaker, .allowBluetoothA2DP, .allowAirPlay])
             // Never deactivated — a video may be playing at any point.
             try session.setActive(true)
         } catch {
-            print("[Audio] session config failed (mic active: \(isMicrophoneActive)): \(error)")
-            // Video sound matters more than the mic, so fall back to playback only.
+            print("[Audio] session config failed: \(error)")
+            // Video sound matters more than the mic, so fall back to playback
+            // only — e.g. if mic access is denied and `.playAndRecord` is refused.
             try? session.setCategory(.playback, mode: .default, options: [])
             try? session.setActive(true)
         }

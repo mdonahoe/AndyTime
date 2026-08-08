@@ -308,9 +308,6 @@ class CameraViewController: UIViewController {
             let audioGranted = await AVCaptureDevice.requestAccess(for: .audio)
             lkLog("mic permission: \(audioGranted ? "granted" : "denied")")
             if audioGranted {
-                // Move the session to `.playAndRecord` before the engine starts
-                // capturing — see AudioSessionManager.
-                AudioSessionManager.shared.setMicrophoneActive(true)
                 let aTrack = LocalAudioTrack.createTrack(name: "mic")
                 self.audioTrack = aTrack
                 lkLog("publishing audio track")
@@ -326,7 +323,6 @@ class CameraViewController: UIViewController {
 
         } catch {
             lkLog("connect() error: \(error)")
-            AudioSessionManager.shared.setMicrophoneActive(false)
             appendStats("✗ \(error.localizedDescription)")
             await MainActor.run {
                 connectButton.setTitle("Connect", for: .normal)
@@ -501,8 +497,6 @@ extension CameraViewController: RoomDelegate {
                 statsTextView.text = "— not connected —"
                 cameraTrack = nil
                 audioTrack = nil
-                // Nothing is capturing anymore, so drop back to plain playback.
-                AudioSessionManager.shared.setMicrophoneActive(false)
             }
         }
     }
